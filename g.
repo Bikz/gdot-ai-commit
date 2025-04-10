@@ -28,8 +28,9 @@ if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
   echo_red "Not inside a Git repository."
   exit 1
 fi
+# Check for jq, which is required for reliable JSON handling with Ollama
 if ! command -v jq &> /dev/null; then
-    echo_red "'jq' command not found, but it is required for reliable operation."
+    echo_red "'jq' command not found, but it is required for reliable JSON handling with Ollama."
     echo_red "Please install jq (e.g., brew install jq, sudo apt install jq)."
     exit 1
 fi
@@ -75,8 +76,8 @@ DIFF_CONTENT=$(git diff --staged)
 
 if [ -z "$DIFF_CONTENT" ]; then
   echo_green "No changes staged to commit."
-   if [ -n "$COMMIT_MESSAGE" ]; then
-     echo_yellow "Warning: Commit message provided, but no changes were staged."
+    if [ -n "$COMMIT_MESSAGE" ]; then
+      echo_yellow "Warning: Commit message provided, but no changes were staged."
   fi
   exit 0
 fi
@@ -157,7 +158,13 @@ echo_green "Commit successful."
 
 echo "Pushing changes..."
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-REMOTE_NAME=$(git remote | head -n 1)
+
+# Prioritize 'origin', otherwise use the first available remote
+if git remote | grep -q '^origin$'; then
+    REMOTE_NAME="origin"
+else
+    REMOTE_NAME=$(git remote | head -n 1)
+fi
 
 if [ -z "$REMOTE_NAME" ]; then
     echo_yellow "No git remote found. Skipping push."
