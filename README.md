@@ -77,13 +77,7 @@ g. "fix: resolved authentication issue in login form"
   ```bash
   g. --update
   ```
-  
-  or
 
-  ```bash
-  g. update
-  ```
-  
   This command will download the latest version of the g. script and replace your current one. You might need to restart your terminal session or run `hash -r` for the changes to take effect immediately.
 
 ## Configuration
