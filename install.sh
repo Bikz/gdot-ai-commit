@@ -23,8 +23,102 @@ echo_red() {
 echo_yellow() {
   echo -e "\033[0;33m$1\033[0m" # Warning/Info color
 }
+
+check_requirements() {
+  local REQUIREMENTS_MET=true
+  
+  # Check for Ollama installation
+  if ! command -v ollama &> /dev/null; then
+    REQUIREMENTS_MET=false
+    guide_ollama_install
+    return 1
+  fi
+  
+  # Check if the default model exists
+  echo "Checking for default model '${DEFAULT_MODEL}'..."
+  if ! ollama list | grep -q "^${DEFAULT_MODEL}"; then
+    REQUIREMENTS_MET=false
+    guide_model_install
+    return 1
+  fi
+  
+  return 0
+}
+
+guide_ollama_install() {
+  echo_yellow "---------------------------------------------------------------------"
+  echo_yellow "ACTION REQUIRED: Ollama is not installed"
+  OS_TYPE=$(uname -s)
+  
+  if [[ "$OS_TYPE" == "Darwin" ]]; then
+    # macOS Instructions
+    echo_yellow "Please download and install Ollama for macOS from:"
+    echo ""
+    echo_green "  https://ollama.com/download"
+    echo ""
+    echo_yellow "After installing the Ollama application, run these commands to start it:"
+    echo_green "  1. Open the Ollama application"
+    echo_green "  2. Wait for it to initialize (might take a few seconds)"
+  elif [[ "$OS_TYPE" == "Linux" ]]; then
+    # Linux Instructions
+    echo_yellow "Please install Ollama for Linux by running the following command:"
+    echo ""
+    echo_green "  curl -fsSL https://ollama.com/install.sh | sh"
+    echo ""
+    echo_yellow "(Note: The Ollama script might require sudo privileges)."
+    echo_yellow "After installation, start the Ollama service with:"
+    echo_green "  ollama serve"
+  else
+    # Other OS - General Link
+    echo_yellow "Please install Ollama for your operating system from:"
+    echo ""
+    echo_green "  https://ollama.com/download"
+    echo ""
+  fi
+  
+  echo_yellow "Then re-run this installer script:"
+  echo_green "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
+  echo_yellow "---------------------------------------------------------------------"
+}
+
+guide_model_install() {
+  echo_yellow "---------------------------------------------------------------------"
+  echo_yellow "ACTION REQUIRED: Default model '${DEFAULT_MODEL}' is not installed"
+  echo_yellow "You need to install the ${DEFAULT_MODEL} model to use ${SCRIPT_NAME}"
+  
+  # Ask if they want to install the model now
+  while true; do
+    read -p "Do you want to pull '${DEFAULT_MODEL}' now? (y/N): " -n 1 -r REPLY
+    echo # Move to a new line
+    case "$REPLY" in
+      [Yy]* )
+        echo "Pulling model '${DEFAULT_MODEL}'..."
+        echo_yellow "This may take several minutes depending on your internet connection."
+        echo_yellow "Model size: ~4GB for llama3.2"
+        if ollama pull "${DEFAULT_MODEL}"; then
+          echo_green "Model '${DEFAULT_MODEL}' installed successfully!"
+          return 0
+        else
+          echo_red "Failed to pull model '${DEFAULT_MODEL}'."
+          echo_yellow "Please check your internet connection and try again."
+          echo_yellow "You can manually install the model later with:"
+          echo_green "  ollama pull ${DEFAULT_MODEL}"
+          return 1
+        fi
+        ;;
+      [Nn]* | "" ) # Default to No
+        echo_yellow "Skipping model installation."
+        echo_yellow "You'll need to install it manually before using ${SCRIPT_NAME}:"
+        echo_green "  ollama pull ${DEFAULT_MODEL}"
+        return 1
+        ;;
+      * ) echo "Please answer yes (y) or no (n)." ;;
+    esac
+  done
+}
 # --- End Helper Functions ---
 
+# --- Main Installation Process ---
 echo "Installing ${SCRIPT_NAME} script to ${INSTALL_DIR}..."
 
 # Ensure target directory exists
@@ -57,70 +151,12 @@ echo_green "Installation of '${SCRIPT_NAME}' complete!"
 echo ""
 
 # --- Post-installation Checks ---
-
-OLLAMA_INSTALLED=true
-# Check for Ollama installation
-if ! command -v ollama &> /dev/null; then
-    OLLAMA_INSTALLED=false
-    echo_yellow "---------------------------------------------------------------------"
-    echo_yellow "ACTION REQUIRED: Ollama command not found."
-    OS_TYPE=$(uname -s)
-    if [[ "$OS_TYPE" == "Darwin" ]]; then
-        # macOS Instructions
-        echo_yellow "Please download and install Ollama for macOS from:"
-        echo ""
-        echo_green "  https://ollama.com/download"
-        echo ""
-        echo_yellow "After installing the Ollama application, please re-run this installer:"
-    elif [[ "$OS_TYPE" == "Linux" ]]; then
-        # Linux Instructions
-        echo_yellow "Please install Ollama for Linux by running the following command,"
-        echo_yellow "then re-run this installer script:"
-        echo ""
-        echo_green "  curl -fsSL https://ollama.com/install.sh | sh"
-        echo ""
-        echo_yellow "(Note: The Ollama script might require sudo privileges)."
-    else
-        # Other OS - General Link
-        echo_yellow "Please install Ollama for your operating system from:"
-        echo ""
-        echo_green "  https://ollama.com/download"
-        echo ""
-        echo_yellow "Then re-run this installer script:"
-    fi
-    echo_yellow "  curl -s https://raw.githubusercontent.com/Bikz/git-ai-commit/main/install.sh | bash"
-    echo_yellow "---------------------------------------------------------------------"
-    # Exit here, user needs to install Ollama first and re-run
-    exit 1
+echo "Checking dependencies..."
+if check_requirements; then
+  echo_green "All requirements satisfied! "
 else
-    echo "Ollama found."
-    # Check if the default model exists if Ollama is installed
-    echo "Checking for default model '${DEFAULT_MODEL}'..."
-    if ! ollama list | grep -q "^${DEFAULT_MODEL}"; then
-        echo_yellow "Default model '${DEFAULT_MODEL}' not found locally."
-        while true; do
-            read -p "Do you want to attempt to pull '${DEFAULT_MODEL}' now? (y/N): " -n 1 -r REPLY
-            echo # Move to a new line
-            case "$REPLY" in
-              [Yy]* )
-                echo "Attempting 'ollama pull ${DEFAULT_MODEL}'..."
-                if ollama pull "${DEFAULT_MODEL}"; then
-                    echo_green "Model '${DEFAULT_MODEL}' pulled successfully."
-                else
-                    echo_red "Failed to pull model '${DEFAULT_MODEL}'. Please try manually."
-                fi
-                break # Exit loop after attempting
-                ;;
-              [Nn]* | "" ) # Default to No
-                echo "Skipping model pull. Please run 'ollama pull ${DEFAULT_MODEL}' manually before using '${SCRIPT_NAME}'."
-                break # Exit loop
-                ;;
-              * ) echo "Please answer yes (y) or no (n)." ;;
-            esac
-        done
-    else
-        echo "Default model '${DEFAULT_MODEL}' found."
-    fi
+  echo_yellow "Please install the missing requirements and then you'll be ready to use ${SCRIPT_NAME}"
+  # Note: We don't exit here, so PATH check and other info are still shown
 fi
 
 echo ""
@@ -138,11 +174,10 @@ case ":$PATH:" in
 esac
 
 echo ""
-# Final readiness message
-if [ "$OLLAMA_INSTALLED" = true ]; then
-    echo "You should be ready to use the '${SCRIPT_NAME}' command in your Git repositories."
+# Final message
+if check_requirements >/dev/null 2>&1; then
+  echo_green "You're all set! You can now use '${SCRIPT_NAME}' in your Git repositories."
 else
-    # Fallback message (less likely to be reached now)
-    echo_yellow "Remember to install Ollama before using '${SCRIPT_NAME}'."
+  echo_yellow "Remember to complete all requirements before using '${SCRIPT_NAME}'."
 fi
 exit 0
