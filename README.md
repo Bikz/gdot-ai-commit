@@ -9,6 +9,8 @@ A lightning-fast utility for Git that stages, commits with AI-generated messages
 - **Privacy-focused**: All processing happens on your machine.
 - **Minimal keystrokes**: Just type `g.` and you're done.
 - **Works with your flow**: Optionally provide your own commit message.
+- **Automatic Update Notifications**: Checks daily for new versions and notifies you.
+- **Simple Manual Update**: Use `g. --update` to get the latest version anytime.
 
 ## Prerequisites
 
@@ -64,6 +66,25 @@ g.
 # Use your own commit message instead of AI generation
 g. "fix: resolved authentication issue in login form"
 ```
+
+## Updating
+
+`git-ai-commit` includes a built-in mechanism to check for updates daily.
+
+- **Automatic Check:** Once a day, the script will automatically check GitHub for a newer version. If one is found, it will print a notification suggesting you update.
+- **Manual Update:** To manually trigger an update at any time, run:
+
+  ```bash
+  g. --update
+  ```
+  
+  or
+
+  ```bash
+  g. update
+  ```
+  
+  This command will download the latest version of the g. script and replace your current one. You might need to restart your terminal session or run `hash -r` for the changes to take effect immediately.
 
 ## Configuration
 
