@@ -175,7 +175,7 @@ esac
 
 echo ""
 # Final message
-if check_requirements >/dev/null 2>&1; then
+if check_requirements > /dev/null 2>&1; then
   echo_green "You're all set! You can now use '${SCRIPT_NAME}' in your Git repositories."
 else
   echo_yellow "Remember to complete all requirements before using '${SCRIPT_NAME}'."
