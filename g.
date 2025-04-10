@@ -26,14 +26,33 @@ INSTALL_PATH="$0" # Assumes script is run from PATH or directly
 
 # --- Helper Functions ---
 # Use prefixes for clarity
-# Note: Using standard spaces instead of non-breaking spaces (' ')
+# Note: Using standard spaces instead of non-breaking spaces (' ')
 echo_step() { echo -e "\033[0;33m[⚙️] $1\033[0m"; }
 echo_success() { echo -e "\033[0;32m[✓] $1\033[0m"; }
 echo_warn() { echo -e "\033[0;33m[⚠️] $1\033[0m"; }
-echo_info() { echo "    $1"; } # Standard spaces for indentation
+echo_info() { echo "     $1"; } # Standard spaces for indentation
 echo_red() { echo -e "\033[0;31m[✗] Error: $1\033[0m" >&2; }
 echo_commit() { echo -e "\033[0;32m$1\033[0m"; } # Standard spaces if needed inside message
 echo_update() { echo -e "\033[0;36m[⬆️] $1\033[0m"; } # Cyan for update messages
+
+# --- ASCII Art Function for Update ---
+# Prints the logo after a successful update, including the repo URL
+print_update_logo() {
+    local color1="\033[0;32m" # Green for g.
+    local success_color="\033[0;32m" # Green for success message
+    local info_color="\033[0;33m"  # Yellow for repo URL (consistent with install.sh)
+    local nc="\033[0m"       # No Color
+
+    echo -e "${color1} __ _       ${nc}"
+    echo -e "${color1} / _\` |      ${nc}"
+    echo -e "${color1}| (_| |     ${nc}  ${success_color}Success!${nc}"
+    echo -e "${color1} \\__, | (_)${nc}  ${success_color}Update complete!${nc}"
+    echo -e "${color1}  __/ |     ${nc}  ${info_color}Repo: https://github.com/${GITHUB_USER}/${REPO_NAME}${nc}"
+    echo -e "${color1} |___/      ${nc}"
+    echo "" # Add a blank line after logo
+}
+# --- End ASCII Art Function ---
+
 # --- End Helper Functions ---
 
 # --- Update Functions ---
@@ -148,16 +167,22 @@ perform_update() {
           echo_warn "Write permission needed for $INSTALL_PATH. Attempting with sudo..."
           sudo mv "$temp_file" "$INSTALL_PATH"
       elif [[ ! -w "$INSTALL_PATH" ]]; then
-           echo_red "Update failed: No write permission for $INSTALL_PATH and sudo not found/used."
-           echo_info "Try running 'sudo g. --update' or update manually via installer."
-           exit 1 # Exit failure explicitly
+            echo_red "Update failed: No write permission for $INSTALL_PATH and sudo not found/used."
+            echo_info "Try running 'sudo g. --update' or update manually via installer."
+            exit 1 # Exit failure explicitly
       else
           mv "$temp_file" "$INSTALL_PATH" # set -e handles mv failure
       fi
       # If mv succeeds, the trap from the old script is no longer relevant in this subshell
       trap - EXIT HUP INT QUIT TERM # Clear trap on success
-      echo ""
-      echo_success "'$SCRIPT_FILENAME' updated successfully!"
+
+      # <<< MODIFICATION START >>>
+      echo "" # Add spacing before the logo
+      print_update_logo # Call the logo function
+      # Remove the old success message as the logo now handles it
+      # echo_success "'$SCRIPT_FILENAME' updated successfully!"
+      # <<< MODIFICATION END >>>
+
       echo_update "Please restart your terminal or run 'hash -r' for the shell to see the new version."
       echo ""
       exit 0 # Explicitly exit successfully from subshell
@@ -215,7 +240,7 @@ main_commit_logic() {
       COMMIT_MESSAGE="$PROVIDED_MESSAGE"
       echo_step "Using provided commit message..."
       # Display multi-line messages correctly indented
-      while IFS= read -r line; do echo_commit "    $line"; done <<< "$COMMIT_MESSAGE"
+      while IFS= read -r line; do echo_commit "     $line"; done <<< "$COMMIT_MESSAGE"
       ACTION_SUMMARY+="Used provided commit message. "
       echo ""
     else
@@ -267,7 +292,7 @@ main_commit_logic() {
       echo ""
       echo_step "Generated Commit Message:"
       # Display multi-line messages correctly indented
-      while IFS= read -r line; do echo_commit "    $line"; done <<< "$COMMIT_MESSAGE"
+      while IFS= read -r line; do echo_commit "     $line"; done <<< "$COMMIT_MESSAGE"
       ACTION_SUMMARY+="Generated AI commit message. "
       echo ""
     fi

@@ -35,7 +35,7 @@ print_logo() {
     echo -e "${color1} / _\` |     ${nc}"
     echo -e "${color1}| (_| |    ${nc}  ${color2}git-ai-commit${nc}"  
     echo -e "${color1} \\__, | (_)${nc}  ${color2}---------------${nc}"
-    echo -e "${color1}  __/ |    ${nc}"
+    echo -e "${color1}  __/ |    ${nc}  ${color2}Repo: https://github.com/${GITHUB_USER}/${REPO_NAME}${nc}"
     echo -e "${color1} |___/     ${nc}"
     echo "" # Add a blank line after logo
 }
