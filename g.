@@ -26,12 +26,13 @@ INSTALL_PATH="$0" # Assumes script is run from PATH or directly
 
 # --- Helper Functions ---
 # Use prefixes for clarity
+# Note: Using standard spaces instead of non-breaking spaces (' ')
 echo_step() { echo -e "\033[0;33m[⚙️] $1\033[0m"; }
 echo_success() { echo -e "\033[0;32m[✓] $1\033[0m"; }
 echo_warn() { echo -e "\033[0;33m[⚠️] $1\033[0m"; }
-echo_info() { echo "    $1"; }
+echo_info() { echo "    $1"; } # Standard spaces for indentation
 echo_red() { echo -e "\033[0;31m[✗] Error: $1\033[0m" >&2; }
-echo_commit() { echo -e "\033[0;32m$1\033[0m"; }
+echo_commit() { echo -e "\033[0;32m$1\033[0m"; } # Standard spaces if needed inside message
 echo_update() { echo -e "\033[0;36m[⬆️] $1\033[0m"; } # Cyan for update messages
 # --- End Helper Functions ---
 
@@ -39,21 +40,11 @@ echo_update() { echo -e "\033[0;36m[⬆️] $1\033[0m"; } # Cyan for update mess
 
 # Function to find a suitable hashing command
 get_hash_command() {
-    if command -v sha256sum >/dev/null; then
-        echo "sha256sum"
-    elif command -v shasum >/dev/null && shasum -a 256 -c <<<"foo bar" >/dev/null 2>&1; then
-        # macOS shasum supports -a 256
-        echo "shasum -a 256"
-    elif command -v md5sum >/dev/null; then
-        # Fallback to md5sum
-        echo "md5sum"
-    elif command -v md5 >/dev/null; then
-        # macOS md5 needs -r for compatible output
-        echo "md5 -r"
-    else
-        # No suitable command found
-        return 1
-    fi
+    if command -v sha256sum >/dev/null; then echo "sha256sum";
+    elif command -v shasum >/dev/null && shasum -a 256 -c <<<"foo bar" >/dev/null 2>&1; then echo "shasum -a 256";
+    elif command -v md5sum >/dev/null; then echo "md5sum";
+    elif command -v md5 >/dev/null; then echo "md5 -r";
+    else return 1; fi
     return 0
 }
 
@@ -70,11 +61,10 @@ check_for_update() {
     mkdir -p "$CACHE_DIR" || { echo_warn "Could not create cache directory: $CACHE_DIR. Skipping update check."; return 1; }
 
     # Check if we need to perform the check based on interval
-    local now threshold interval="$1"
+    local now threshold interval="$1" hash_cmd current_hash remote_hash remote_content last_check
     now=$(date +%s)
     threshold=$((now - interval))
     if [[ -f "$LAST_CHECK_FILE" ]]; then
-        local last_check
         # Get modification time using stat (cross-platform friendly attempt)
         last_check=$(stat -f %m "$LAST_CHECK_FILE" 2>/dev/null || stat -c %Y "$LAST_CHECK_FILE" 2>/dev/null)
         # Ensure last_check is a number
@@ -86,23 +76,21 @@ check_for_update() {
 
     # Update timestamp *before* network access
     # If network fails, we won't check again immediately.
-    touch "$LAST_CHECK_FILE" || { echo_warn "Could not update timestamp file: $LAST_CHECK_FILE. Update check may run too often."; }
+    touch "$LAST_CHECK_FILE" || { echo_warn "Could not update timestamp file: $LAST_CHECK_FILE."; } # Don't exit, just warn
 
     # Find a hashing command
-    local hash_cmd
     if ! hash_cmd=$(get_hash_command); then
-        echo_warn "Cannot check for updates: No suitable hashing command found (sha256sum, shasum, md5sum, md5)."
+        echo_warn "Cannot check for updates: No suitable hashing command found."
         return 1
     fi
 
     # Check dependencies for the check itself
-    if ! command -v curl &> /dev/null || ! command -v awk &> /dev/null; then
-        echo_warn "Cannot check for updates: 'curl' or 'awk' command not found."
+    if ! command -v curl &>/dev/null || ! command -v awk &>/dev/null || ! command -v date &>/dev/null || ! command -v stat &>/dev/null ; then
+        echo_warn "Cannot check for updates: Required command missing (curl, awk, date, stat)."
         return 1
     fi
 
     # Calculate hash of the current script
-    local current_hash remote_hash remote_content
     current_hash=$(cat "$INSTALL_PATH" | calculate_hash "$hash_cmd")
     if [[ -z "$current_hash" ]]; then
         echo_warn "Could not calculate hash of local script. Skipping update check."
@@ -113,8 +101,6 @@ check_for_update() {
     remote_content=$(curl -fsSL "$REMOTE_SCRIPT_URL")
     if [[ $? -ne 0 ]] || [[ -z "$remote_content" ]]; then
         # Silently ignore failed fetches (network issue, repo down etc)
-        # Error message would be annoying on every run if network is down.
-        # Check will be attempted again later based on interval.
         return 0
     fi
 
@@ -131,265 +117,231 @@ check_for_update() {
         echo_update "A new version of git-ai-commit ('g.') is available!"
         echo_update "Run 'g. --update' to install it."
         echo ""
-        # Optionally, store remote hash to avoid notifying again until next update?
-        # echo "$remote_hash" > "${CACHE_DIR}/latest_remote_hash"
     fi
-     # If hashes match, do nothing (already up to date)
     return 0
 }
 
 # Function to perform the self-update
 perform_update() {
-    echo_update "Attempting to update '$SCRIPT_FILENAME' from $REMOTE_SCRIPT_URL..."
-
-    # Check dependencies
-    if ! command -v curl &> /dev/null || ! command -v chmod &> /dev/null || ! command -v mv &> /dev/null; then
-        echo_red "Update failed: Required command not found ('curl', 'chmod', 'mv')."
-        exit 1
-    fi
-
-    # Fetch the new script content to a temporary file
-    local temp_file
-    # Create temp file securely in /tmp
-    temp_file=$(mktemp "/tmp/${SCRIPT_FILENAME}.XXXXXX")
-    if [[ $? -ne 0 ]] || [[ -z "$temp_file" ]]; then
-      echo_red "Update failed: Could not create temporary file."
-      exit 1
-    fi
-    # Ensure temp file is cleaned up on exit/error
-    trap 'rm -f "$temp_file"' EXIT
-
-    echo_update "Downloading latest version..."
-    if ! curl -fsSL "$REMOTE_SCRIPT_URL" -o "$temp_file"; then
-        echo_red "Update failed: Download error from $REMOTE_SCRIPT_URL."
-        exit 1
-    fi
-
-    # Check if download was successful and file is not empty
-    if [[ ! -s "$temp_file" ]]; then
-        echo_red "Update failed: Downloaded file is empty."
-        exit 1
-    fi
-
-    # Optional: Basic syntax check on the downloaded script
-    if command -v bash &> /dev/null && ! bash -n "$temp_file"; then
-        echo_red "Update failed: Downloaded script has syntax errors."
-        exit 1
-    fi
-    echo_success "Downloaded script passed syntax check."
-
-    # Make the new script executable
-    if ! chmod +x "$temp_file"; then
-        echo_red "Update failed: Could not set executable permission on downloaded file."
-        exit 1
-    fi
-
-    # Replace the old script with the new one
-    # This requires write permission to the script itself (e.g., ~/.local/bin/g.)
-    echo_update "Replacing current script ($INSTALL_PATH)..."
-    if ! mv "$temp_file" "$INSTALL_PATH"; then
-        echo_red "Update failed: Could not replace the current script."
-        echo_info "Check permissions for '$INSTALL_PATH'."
-        echo_info "You might need to run 'curl -s ... | bash' manually."
-        exit 1
-    fi
-
-    # Success! Remove the trap before exiting cleanly
-    trap - EXIT
-    echo ""
-    echo_success "'$SCRIPT_FILENAME' updated successfully!"
-    echo_update "Please restart your terminal or run 'hash -r' if the command is not immediately found."
-    echo ""
-    exit 0
+    # Ensure potential errors within this function cause an exit
+    # Run in a subshell to contain 'set -e' and trap behavior
+    (
+      set -e # Apply error exit only within this subshell
+      echo_update "Attempting to update '$SCRIPT_FILENAME' from $REMOTE_SCRIPT_URL..."
+      if ! command -v curl &>/dev/null || ! command -v chmod &>/dev/null || ! command -v mv &>/dev/null || ! command -v mktemp &>/dev/null; then
+          echo_red "Update failed: Required command missing ('curl', 'chmod', 'mv', 'mktemp')."; exit 1;
+      fi
+      local temp_file
+      temp_file=$(mktemp "/tmp/${SCRIPT_FILENAME}.XXXXXX")
+      # Ensure temp file is cleaned up on unexpected exit within subshell
+      trap 'rm -f "$temp_file"' EXIT HUP INT QUIT TERM
+      echo_update "Downloading latest version..."
+      curl -fsSL "$REMOTE_SCRIPT_URL" -o "$temp_file" # set -e handles curl failure
+      if [[ ! -s "$temp_file" ]]; then echo_red "Update failed: Downloaded file is empty."; exit 1; fi
+      # Basic syntax check
+      if command -v bash &>/dev/null && ! bash -n "$temp_file"; then echo_red "Update failed: Downloaded script has syntax errors."; exit 1; fi
+      echo_success "Downloaded script passed syntax check."
+      chmod +x "$temp_file" # set -e handles chmod failure
+      echo_update "Replacing current script ($INSTALL_PATH)..."
+      # Use sudo if the script isn't writable by the user (common if installed system-wide)
+      if [[ ! -w "$INSTALL_PATH" ]] && command -v sudo >/dev/null; then
+          echo_warn "Write permission needed for $INSTALL_PATH. Attempting with sudo..."
+          sudo mv "$temp_file" "$INSTALL_PATH"
+      elif [[ ! -w "$INSTALL_PATH" ]]; then
+           echo_red "Update failed: No write permission for $INSTALL_PATH and sudo not found/used."
+           echo_info "Try running 'sudo g. --update' or update manually via installer."
+           exit 1 # Exit failure explicitly
+      else
+          mv "$temp_file" "$INSTALL_PATH" # set -e handles mv failure
+      fi
+      # If mv succeeds, the trap from the old script is no longer relevant in this subshell
+      trap - EXIT HUP INT QUIT TERM # Clear trap on success
+      echo ""
+      echo_success "'$SCRIPT_FILENAME' updated successfully!"
+      echo_update "Please restart your terminal or run 'hash -r' for the shell to see the new version."
+      echo ""
+      exit 0 # Explicitly exit successfully from subshell
+    )
+    # Capture the exit status of the subshell
+    local update_status=$?
+    # Exit the main script process with the status from the subshell
+    exit $update_status
 }
 
 # --- End Update Functions ---
 
+# ==========================================================
+# Main Execution Logic Function
+# ==========================================================
+main_commit_logic() {
+    # Run periodic check in background *only* during normal operation
+    ( check_for_update "$CHECK_INTERVAL_SECONDS" >& /dev/null & )
 
-# --- Argument Parsing for Update ---
-if [[ "$1" == "update" ]] || [[ "$1" == "--update" ]]; then
-    perform_update
-    # perform_update exits on success or failure
-fi
+    # --- Sanity Checks ---
+    if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then echo_red "Not inside a Git repository."; exit 1; fi
+    if ! command -v jq &>/dev/null; then echo_red "'jq' command not found."; echo_info "Install via package manager (e.g., brew install jq)."; exit 1; fi
+    if ! command -v ollama &>/dev/null; then echo_red "'ollama' command not found."; echo_info "Install from https://ollama.ai."; exit 1; fi
+    # --- End Sanity Checks ---
 
-# --- Periodic Update Check ---
-# Run this *after* checking for --update argument, but before main logic.
-# Run in background (&) to avoid blocking startup, redirect output to avoid clutter unless update found.
-# Disable error exit temporarily if using set -e earlier
-( check_for_update "$CHECK_INTERVAL_SECONDS" >& /dev/null & )
-# --- End Periodic Update Check ---
+    echo "" # Start output with a blank line
 
+    local COMMIT_MESSAGE="" # Use local for vars inside function
+    local ACTION_SUMMARY=""
+    # Use the first argument passed to *this function* for the commit message
+    # All remaining arguments ($2, $3...) are currently ignored by the core logic
+    local PROVIDED_MESSAGE="$1"
 
-# --- Sanity Checks ---
-if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
-  echo_red "Not inside a Git repository."
-  exit 1
-fi
-if ! command -v jq &> /dev/null; then
-    echo_red "'jq' command not found, required for reliable JSON handling."
-    echo_info "Please install jq (e.g., brew install jq, sudo apt install jq)."
-    exit 1
-fi
-if ! command -v ollama &> /dev/null; then
-    echo_red "'ollama' command not found."
-    echo_info "Please install Ollama from https://ollama.ai and ensure it's in your PATH."
-    exit 1
-fi
-# --- End Sanity Checks ---
-
-
-# --- Main Logic ---
-echo "" # Start with a blank line
-
-COMMIT_MESSAGE=""
-ACTION_SUMMARY="" # To store summary of actions
-
-# --- Git Add ---
-echo_step "Staging all changes ('git add .')..."
-# (Rest of the script logic from the previous version remains unchanged)
-# ... [Git Add, Commit Message Handling, AI Generation, Commit, Push logic] ...
-
-if ! git add . ; then
-  echo_red "Failed to stage changes."
-  exit 1
-fi
-STAGED_FILES=$(git diff --staged --name-only | wc -l | awk '{$1=$1};1')
-if [ "$STAGED_FILES" -eq 0 ]; then
-    if [ -n "$(git status --porcelain)" ]; then
-        echo_warn "No changes staged. There are unstaged changes or untracked files."
-        echo_info "You might want to stage them first with 'git add .'"
+    # --- Git Add ---
+    echo_step "Staging all changes ('git add .')..."
+    if ! git add . ; then echo_red "Failed to stage changes."; exit 1; fi
+    local STAGED_FILES
+    STAGED_FILES=$(git diff --staged --name-only | wc -l | awk '{$1=$1};1')
+    if [ "$STAGED_FILES" -eq 0 ]; then
+        if [ -n "$(git status --porcelain)" ]; then
+            echo_warn "No changes staged. There are unstaged changes or untracked files."
+            echo_info "Stage them first or commit specific files."
+        else
+            echo_success "No changes detected or staged. Working tree clean."
+        fi
+        exit 0
     else
-        echo_success "No changes detected or staged. Working tree clean."
+        echo_success "Staged $STAGED_FILES file(s)."
+        ACTION_SUMMARY+="Staged $STAGED_FILES file(s). "
     fi
+    echo ""
+
+    # --- Commit Message Handling ---
+    if [ -n "$PROVIDED_MESSAGE" ]; then
+      COMMIT_MESSAGE="$PROVIDED_MESSAGE"
+      echo_step "Using provided commit message..."
+      # Display multi-line messages correctly indented
+      while IFS= read -r line; do echo_commit "    $line"; done <<< "$COMMIT_MESSAGE"
+      ACTION_SUMMARY+="Used provided commit message. "
+      echo ""
+    else
+      # --- Model Check ---
+      echo_step "Checking local Ollama model: $MODEL..."
+      if ! ollama list | grep -q "^${MODEL}"; then
+        echo_warn "Model '$MODEL' not found locally. Attempting to pull..."
+        # Run ollama pull in foreground as it requires user attention/time
+        if ! ollama pull "$MODEL"; then echo_red "Failed to pull model '$MODEL'."; echo_info "Check name/internet. 'ollama pull $MODEL'."; exit 1; fi
+        echo_success "Model '$MODEL' pulled successfully."
+      else
+        echo_success "Model '$MODEL' found locally."
+      fi
+      echo ""
+
+      # --- Diff ---
+      echo_step "Analyzing staged changes for AI..."
+      local DIFF_CONTENT
+      DIFF_CONTENT=$(git diff --staged)
+      if [ -z "$DIFF_CONTENT" ]; then
+          # This check might be redundant given the STAGED_FILES check earlier, but safe to keep
+          echo_success "No diff content found for staged files."
+          exit 0
+      fi
+      echo_success "Diff analysis complete."
+      echo ""
+
+      # --- AI Generation ---
+      echo_step "Generating commit message via Ollama (Model: $MODEL)..."
+      local USER_PROMPT_CONTENT JSON_PAYLOAD OLLAMA_RESPONSE CURL_EXIT_CODE GENERATED_CONTENT OLLAMA_ERROR
+      USER_PROMPT_CONTENT=$(printf 'Generate a conventional commit message for the following diff:\n\n%s' "$DIFF_CONTENT")
+      # Use shorter variable names inside jq for clarity
+      JSON_PAYLOAD=$(jq -n \
+        --arg model "$MODEL" \
+        --arg sys "You are an expert programmer writing a concise Git commit message. Follow the Conventional Commits specification (e.g., fix:, feat:, chore:). Describe the changes based *only* on the provided diff. Do not add any explanations, notes, apologies, or introductory phrases like 'Here is the commit message:'. Output ONLY the commit message." \
+        --arg user "$USER_PROMPT_CONTENT" \
+        --argjson temp "$TEMP" \
+        '{ model: $model, messages: [ {role: "system", content: $sys}, {role: "user", content: $user} ], stream: false, options: { temperature: $temp } }')
+      if [ $? -ne 0 ]; then echo_red "Failed to construct JSON payload using jq."; git reset >/dev/null 2>&1; exit 1; fi
+      OLLAMA_RESPONSE=$(curl -sf -X POST "$OLLAMA_ENDPOINT" -d "$JSON_PAYLOAD")
+      CURL_EXIT_CODE=$?
+      if [ $CURL_EXIT_CODE -ne 0 ]; then echo_red "Failed to communicate with Ollama API at $OLLAMA_ENDPOINT."; echo_info "Curl exit code: $CURL_EXIT_CODE. Ensure Ollama service running ('ollama ps')."; git reset >/dev/null 2>&1; exit 1; fi
+      GENERATED_CONTENT=$(echo "$OLLAMA_RESPONSE" | jq -r '.message.content // empty')
+      OLLAMA_ERROR=$(echo "$OLLAMA_RESPONSE" | jq -r '.error // empty')
+      if [ -n "$OLLAMA_ERROR" ] && [ "$OLLAMA_ERROR" != "null" ] && [ "$OLLAMA_ERROR" != "empty" ]; then echo_red "Ollama API error: $OLLAMA_ERROR"; echo_info "Ensure model '$MODEL' available/Ollama operational."; git reset >/dev/null 2>&1; exit 1; fi
+      COMMIT_MESSAGE=$(echo "$GENERATED_CONTENT" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//') # Trim whitespace
+      if [ -z "$COMMIT_MESSAGE" ]; then echo_red "Ollama generated empty message."; echo_info "Raw Response: $OLLAMA_RESPONSE"; git reset >/dev/null 2>&1; exit 1; fi
+      echo_success "AI message generated."
+      echo ""
+      echo_step "Generated Commit Message:"
+      # Display multi-line messages correctly indented
+      while IFS= read -r line; do echo_commit "    $line"; done <<< "$COMMIT_MESSAGE"
+      ACTION_SUMMARY+="Generated AI commit message. "
+      echo ""
+    fi
+
+    # --- Commit ---
+    echo_step "Committing changes..."
+    local COMMIT_HASH
+    # Pass the message correctly, handling potential special characters
+    if ! git commit -m "$COMMIT_MESSAGE" -q; then echo_red "Git commit failed."; echo_info "Check pre-commit hooks or other issues."; git reset >/dev/null 2>&1; exit 1; fi
+    COMMIT_HASH=$(git rev-parse --short HEAD)
+    echo_success "Commit successful ($COMMIT_HASH)."
+    ACTION_SUMMARY+="Committed ($COMMIT_HASH). "
+    echo ""
+
+    # --- Push ---
+    echo_step "Pushing changes..."
+    local CURRENT_BRANCH REMOTE_NAME
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+    if git remote | grep -q '^origin$'; then REMOTE_NAME="origin"; else REMOTE_NAME=$(git remote | head -n 1); fi
+    if [ -z "$REMOTE_NAME" ]; then
+        echo_warn "No git remote found. Skipping push."
+        ACTION_SUMMARY+="Push skipped (no remote). "
+    else
+        echo_info "Pushing to $REMOTE_NAME/$CURRENT_BRANCH..."
+        if ! git push "$REMOTE_NAME" "$CURRENT_BRANCH" -q; then
+            echo_red "Git push failed."
+            echo_info "Check remote connection/permissions/commits. Push manually if needed."
+            ACTION_SUMMARY+="Push FAILED. "
+            # Still exit 0 here, as commit succeeded. User must manually resolve push.
+            # Consider changing this to exit 1 if push failure should be considered a script failure.
+        else
+            echo_success "Push successful to $REMOTE_NAME/$CURRENT_BRANCH."
+            ACTION_SUMMARY+="Pushed successfully. "
+        fi
+    fi
+
+    # --- Final Summary ---
+    echo ""
+    echo "$DIVIDER"
+    echo_success "git-ai-commit finished!"
+    echo_info "$ACTION_SUMMARY"
+    echo "$DIVIDER"
+    echo ""
+    # Exit successfully from main logic if push didn't fail, or if it failed but we decided not to count it as script failure
     exit 0
-else
-    echo_success "Staged $STAGED_FILES file(s)."
-    ACTION_SUMMARY+="Staged $STAGED_FILES file(s). "
-fi
-echo ""
+}
 
-# --- Commit Message Handling ---
-if [ -n "$1" ]; then
-  COMMIT_MESSAGE="$1"
-  echo_step "Using provided commit message..."
-  echo_commit "    $COMMIT_MESSAGE"
-  ACTION_SUMMARY+="Used provided commit message. "
-  echo ""
-else
-  # --- Model Check ---
-  echo_step "Checking local Ollama model: $MODEL..."
-  if ! ollama list | grep -q "^${MODEL}"; then
-    echo_warn "Model '$MODEL' not found locally. Attempting to pull..."
-    if ! ollama pull "$MODEL"; then
-      echo_red "Failed to pull model '$MODEL'."
-      echo_info "Check model name and internet connection. Try 'ollama pull $MODEL'."
-      exit 1
-    fi
-    echo_success "Model '$MODEL' pulled successfully."
-  else
-    echo_success "Model '$MODEL' found locally."
-  fi
-  echo ""
+# ==========================================================
+# Script Entry Point - Argument Parsing
+# ==========================================================
+case "$1" in
+    update|--update)
+        perform_update
+        # Use the exit status from the perform_update subshell
+        exit $?
+        ;;
+    help|--help|-h)
+        # Simple help message
+        echo "Usage: g. [commit message]"
+        echo "       g. update | --update"
+        echo "       g. help | --help | -h"
+        echo ""
+        echo "Stages all changes, generates AI commit message (if none provided), commits, and pushes."
+        echo "Use 'update' or '--update' to self-update the script."
+        exit 0
+        ;;
+    *)
+        # No specific command recognized, proceed to main commit logic
+        # Pass all arguments ($@) in case user provides multi-word commit message without quotes initially
+        main_commit_logic "$@"
+        # Use exit code from main logic
+        exit $?
+        ;;
+esac
 
-  # --- Diff ---
-  echo_step "Analyzing staged changes for AI..."
-  DIFF_CONTENT=$(git diff --staged)
-  if [ -z "$DIFF_CONTENT" ]; then
-      echo_success "No changes staged to commit (double check)."
-      exit 0
-  fi
-  echo_success "Diff analysis complete."
-  echo ""
-
-  # --- AI Generation ---
-  echo_step "Generating commit message via Ollama (Model: $MODEL)..."
-  USER_PROMPT_CONTENT=$(printf 'Generate a conventional commit message for the following diff:\n\n%s' "$DIFF_CONTENT")
-  JSON_PAYLOAD=$(jq -n \
-    --arg model "$MODEL" \
-    --arg system_content "You are an expert programmer writing a concise Git commit message. Follow the Conventional Commits specification (e.g., fix:, feat:, chore:). Describe the changes based *only* on the provided diff. Do not add any explanations, notes, apologies, or introductory phrases like 'Here is the commit message:'. Output ONLY the commit message." \
-    --arg user_content "$USER_PROMPT_CONTENT" \
-    --argjson temp "$TEMP" \
-    '{ model: $model, messages: [ {role: "system", content: $system_content}, {role: "user", content: $user_content} ], stream: false, options: { temperature: $temp } }')
-
-  if [ $? -ne 0 ]; then
-      echo_red "Failed to construct JSON payload using jq."
-      git reset > /dev/null 2>&1
-      exit 1
-  fi
-  OLLAMA_RESPONSE=$(curl -sf -X POST "$OLLAMA_ENDPOINT" -d "$JSON_PAYLOAD")
-  CURL_EXIT_CODE=$?
-  if [ $CURL_EXIT_CODE -ne 0 ]; then
-      echo_red "Failed to communicate with Ollama API at $OLLAMA_ENDPOINT."
-      echo_info "Curl exit code: $CURL_EXIT_CODE. Ensure Ollama service is running ('ollama ps')."
-      git reset > /dev/null 2>&1
-      exit 1
-  fi
-  GENERATED_CONTENT=$(echo "$OLLAMA_RESPONSE" | jq -r '.message.content // empty')
-  OLLAMA_ERROR=$(echo "$OLLAMA_RESPONSE" | jq -r '.error // empty')
-  if [ -n "$OLLAMA_ERROR" ] && [ "$OLLAMA_ERROR" != "null" ] && [ "$OLLAMA_ERROR" != "empty" ]; then
-    echo_red "Ollama API returned an error: $OLLAMA_ERROR"
-    echo_info "Ensure model '$MODEL' is available and Ollama service operational."
-    git reset > /dev/null 2>&1
-    exit 1
-  fi
-  COMMIT_MESSAGE=$(echo "$GENERATED_CONTENT" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-  if [ -z "$COMMIT_MESSAGE" ]; then
-    echo_red "Ollama generated an empty or invalid commit message."
-    echo_info "Ollama Raw Response: $OLLAMA_RESPONSE"
-    git reset > /dev/null 2>&1
-    exit 1
-  fi
-  echo_success "AI message generated."
-  echo ""
-  echo_step "Generated Commit Message:"
-  echo_commit "    $COMMIT_MESSAGE"
-  ACTION_SUMMARY+="Generated AI commit message. "
-  echo ""
-fi
-
-# --- Commit ---
-echo_step "Committing changes..."
-if ! git commit -m "$COMMIT_MESSAGE" -q; then
-  echo_red "Git commit failed."
-  echo_info "There might be pre-commit hooks failing or other issues."
-  git reset > /dev/null 2>&1
-  exit 1
-fi
-COMMIT_HASH=$(git rev-parse --short HEAD)
-echo_success "Commit successful ($COMMIT_HASH)."
-ACTION_SUMMARY+="Committed ($COMMIT_HASH). "
-echo ""
-
-# --- Push ---
-echo_step "Pushing changes..."
-CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-if git remote | grep -q '^origin$'; then
-    REMOTE_NAME="origin"
-else
-    REMOTE_NAME=$(git remote | head -n 1)
-fi
-if [ -z "$REMOTE_NAME" ]; then
-    echo_warn "No git remote found. Skipping push."
-    ACTION_SUMMARY+="Push skipped (no remote). "
-else
-    echo_info "Pushing to $REMOTE_NAME/$CURRENT_BRANCH..."
-    if ! git push "$REMOTE_NAME" "$CURRENT_BRANCH" -q; then
-        echo_red "Git push failed."
-        echo_info "Check remote connection, permissions, or if remote branch has new commits."
-        echo_info "You may need to push manually."
-        ACTION_SUMMARY+="Push FAILED. "
-    else
-        echo_success "Push successful to $REMOTE_NAME/$CURRENT_BRANCH."
-        ACTION_SUMMARY+="Pushed successfully. "
-    fi
-fi
-
-# --- Final Summary ---
-echo ""
-echo "$DIVIDER"
-echo_success "git-ai-commit finished!"
-echo_info "$ACTION_SUMMARY"
-echo "$DIVIDER"
-echo ""
-
-exit 0
+# Fallback exit (should only be reached if case statement fails unexpectedly)
+exit 1
