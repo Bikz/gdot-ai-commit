@@ -37,7 +37,7 @@ mkdir -p ~/.local/bin
 2. **Download the script:**
 
 ```bash
-curl -s [https://raw.githubusercontent.com/Bikz/git-ai-commit/main/g](https://raw.githubusercontent.com/Bikz/git-ai-commit/main/g). -o ~/.local/bin/g.
+curl -s https://raw.githubusercontent.com/Bikz/git-ai-commit/main/g -o ~/.local/bin/g.
 ```
 
 3. **Make it executable:**
