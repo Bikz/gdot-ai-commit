@@ -8,7 +8,7 @@
 # --- Configuration ---
 MODEL=${GAC_MODEL:-"llama3.2"} # Default model set to llama3.2
 OLLAMA_ENDPOINT=${GAC_OLLAMA_ENDPOINT:-"http://localhost:11434/api/chat"}
-TEMP=${GAC_TEMP:-0.7} # Lower temp (e.g., 0.2) for more predictable formatting
+TEMP=${GAC_TEMP:-0.2} # Lower temp for more predictable formatting
 DIVIDER="-----------------------------------------"
 COMMIT_DIVIDER="——————————————————" # Divider for commit message
 
@@ -258,18 +258,16 @@ main_commit_logic() {
     # ** Use the NEW, STRICTER system prompt with examples **
     JSON_PAYLOAD=$(jq -n \
       --arg model "$MODEL" \
-      --arg sys "You are an expert programmer writing Git commit messages.
-TASK: Generate ONLY a single-line commit message strictly following the Conventional Commits specification (v1.0.0) based *only* on the provided Git diff.
-FORMAT: MUST be '<type>(<scope>): <subject>'.
-- <type> MUST be one of: feat, fix, build, chore, ci, docs, style, refactor, perf, test. Choose the most appropriate single type for the overall changes.
-- (<scope>) is optional: a noun describing the section of the codebase affected (e.g., auth, ui, script, deps).
-- <subject> MUST be concise, lowercase, imperative mood (e.g., 'add', 'fix', 'change'). Do not end with a period. Max 72 chars.
+      --arg sys "You are a Git commit message generator that follows the Conventional Commits specification strictly.
+TASK: Generate ONLY a single-line commit message based on the provided Git diff.
+FORMAT: <type>(<scope>): <subject>
+- <type> MUST be one of: feat, fix, build, chore, ci, docs, style, refactor, perf, test
+- (<scope>) is optional and should be a noun describing the section affected
+- <subject> MUST be imperative, lowercase, and concise (max 50 chars)
 
-GOOD EXAMPLE OUTPUT 1: fix(auth): correct password reset token validation
-GOOD EXAMPLE OUTPUT 2: feat(ui): add dark mode toggle button
-
-INPUT: The user will provide the Git diff.
-OUTPUT: Respond with ONLY the single commit message line. NO other text, labels, explanations, introduction, or markdown formatting. Just the commit message itself." \
+DO NOT include any explanations, markdown, bullet points, or code examples.
+DO NOT write multiple paragraphs or lines.
+RESPOND ONLY with the single-line commit message and nothing else." \
       --arg user "$USER_PROMPT_CONTENT" \
       --argjson temp "$TEMP" \
       '{ model: $model, messages: [ {role: "system", content: $sys}, {role: "user", content: $user} ], stream: false, options: { temperature: $temp } }')
