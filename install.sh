@@ -62,16 +62,17 @@ echo ""
 OLLAMA_INSTALLED=true
 # Check for Ollama installation
 if ! command -v ollama &> /dev/null; then
-    echo_yellow "-------------------------------------------------------------"
-    echo_yellow "ACTION REQUIRED: Ollama command not found."
-    echo_yellow "Please install Ollama by running the following command"
-    echo_yellow "in your terminal, then re-run this installer:"
+    echo_yellow "---------------------------------------------------------------------"
+    echo_yellow "ACTION REQUIRED: Ollama not found."
+    echo_yellow "Run the following command to install Ollama (it lets you run LLMs like Llama3.2 locally for privacy):"
     echo ""
     echo_green "  curl -fsSL https://ollama.com/install.sh | sh"
     echo ""
-    echo_yellow "-------------------------------------------------------------"
+    echo_yellow "After installing Ollama, please re-run this installer script:"
+    echo_yellow "  curl -s https://raw.githubusercontent.com/Bikz/git-ai-commit/main/install.sh | bash"
+    echo_yellow "---------------------------------------------------------------------"
     OLLAMA_INSTALLED=false
-    # Exit here, user needs to install Ollama first
+    # Exit here, user needs to install Ollama first and re-run
     exit 1
 else
     echo "Ollama found."
@@ -79,8 +80,6 @@ else
     echo "Checking for default model '${DEFAULT_MODEL}'..."
     if ! ollama list | grep -q "^${DEFAULT_MODEL}"; then
         echo_yellow "Default model '${DEFAULT_MODEL}' not found locally."
-        # Ask user if they want to pull the model
-        # Use a loop for clearer input handling
         while true; do
             read -p "Do you want to attempt to pull '${DEFAULT_MODEL}' now? (y/N): " -n 1 -r REPLY
             echo # Move to a new line
@@ -121,10 +120,11 @@ case ":$PATH:" in
 esac
 
 echo ""
+# Final readiness message
 if [ "$OLLAMA_INSTALLED" = true ]; then
     echo "You should be ready to use the '${SCRIPT_NAME}' command in your Git repositories."
 else
-    # This part is less likely to be reached now as we exit if Ollama isn't found
+    # This path is less likely now, but keep for safety
     echo_yellow "Remember to install Ollama before using '${SCRIPT_NAME}'."
 fi
 exit 0
