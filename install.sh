@@ -2,11 +2,11 @@
 # Simple installer for g. (git-ai-commit)
 
 # --- Configuration ---
-GITHUB_USER="Bikz" # <<< Your GitHub username
+GITHUB_USER="Bikz"
 REPO_NAME="git-ai-commit"
 SCRIPT_NAME="g."
 DEFAULT_MODEL="llama3.2" # Default model to check for
-BRANCH="main" # Or whichever branch your script lives on
+BRANCH="main"
 INSTALL_DIR="$HOME/.local/bin"
 # --- End Configuration ---
 
@@ -48,8 +48,7 @@ fi
 chmod +x "${SCRIPT_PATH}"
 if [ $? -ne 0 ]; then
     echo_red "Error: Failed to make script executable at ${SCRIPT_PATH}"
-    # Clean up downloaded script if chmod fails
-    rm -f "${SCRIPT_PATH}" > /dev/null 2>&1
+    rm -f "${SCRIPT_PATH}" > /dev/null 2>&1 # Clean up
     exit 1
 fi
 
@@ -62,16 +61,35 @@ echo ""
 OLLAMA_INSTALLED=true
 # Check for Ollama installation
 if ! command -v ollama &> /dev/null; then
+    OLLAMA_INSTALLED=false
     echo_yellow "---------------------------------------------------------------------"
-    echo_yellow "ACTION REQUIRED: Ollama not found."
-    echo_yellow "Run the following command to install Ollama (it lets you run LLMs like Llama3.2 locally for privacy):"
-    echo ""
-    echo_green "  curl -fsSL https://ollama.com/install.sh | sh"
-    echo ""
-    echo_yellow "After installing Ollama, please re-run this installer script:"
+    echo_yellow "ACTION REQUIRED: Ollama command not found."
+    OS_TYPE=$(uname -s)
+    if [[ "$OS_TYPE" == "Darwin" ]]; then
+        # macOS Instructions
+        echo_yellow "Please download and install Ollama for macOS from:"
+        echo ""
+        echo_green "  https://ollama.com/download"
+        echo ""
+        echo_yellow "After installing the Ollama application, please re-run this installer:"
+    elif [[ "$OS_TYPE" == "Linux" ]]; then
+        # Linux Instructions
+        echo_yellow "Please install Ollama for Linux by running the following command,"
+        echo_yellow "then re-run this installer script:"
+        echo ""
+        echo_green "  curl -fsSL https://ollama.com/install.sh | sh"
+        echo ""
+        echo_yellow "(Note: The Ollama script might require sudo privileges)."
+    else
+        # Other OS - General Link
+        echo_yellow "Please install Ollama for your operating system from:"
+        echo ""
+        echo_green "  https://ollama.com/download"
+        echo ""
+        echo_yellow "Then re-run this installer script:"
+    fi
     echo_yellow "  curl -s https://raw.githubusercontent.com/Bikz/git-ai-commit/main/install.sh | bash"
     echo_yellow "---------------------------------------------------------------------"
-    OLLAMA_INSTALLED=false
     # Exit here, user needs to install Ollama first and re-run
     exit 1
 else
@@ -124,7 +142,7 @@ echo ""
 if [ "$OLLAMA_INSTALLED" = true ]; then
     echo "You should be ready to use the '${SCRIPT_NAME}' command in your Git repositories."
 else
-    # This path is less likely now, but keep for safety
+    # Fallback message (less likely to be reached now)
     echo_yellow "Remember to install Ollama before using '${SCRIPT_NAME}'."
 fi
 exit 0
