@@ -18,10 +18,10 @@ echo_green() {
   echo -e "\033[0;32m$1\033[0m"
 }
 echo_red() {
-  echo -e "\033[0;31mError: $1\033[0m" >&2
+  echo -e "\033[0;31m$1\033[0m" >&2 # Error color
 }
 echo_yellow() {
-  echo -e "\033[0;33m$1\033[0m"
+  echo -e "\033[0;33m$1\033[0m" # Warning/Info color
 }
 # --- End Helper Functions ---
 
@@ -30,7 +30,7 @@ echo "Installing ${SCRIPT_NAME} script to ${INSTALL_DIR}..."
 # Ensure target directory exists
 mkdir -p "${INSTALL_DIR}"
 if [ $? -ne 0 ]; then
-  echo_red "Failed to create installation directory ${INSTALL_DIR}"
+  echo_red "Error: Failed to create installation directory ${INSTALL_DIR}"
   exit 1
 fi
 
@@ -39,7 +39,7 @@ echo "Downloading script from ${SCRIPT_URL}..."
 if curl -fsSL "${SCRIPT_URL}" -o "${SCRIPT_PATH}"; then
   echo "Script downloaded successfully."
 else
-  echo_red "Failed to download script from ${SCRIPT_URL}"
+  echo_red "Error: Failed to download script from ${SCRIPT_URL}"
   echo "Please check the URL, repository permissions, and your internet connection." >&2
   exit 1
 fi
@@ -47,7 +47,7 @@ fi
 # Make the script executable
 chmod +x "${SCRIPT_PATH}"
 if [ $? -ne 0 ]; then
-    echo_red "Failed to make script executable at ${SCRIPT_PATH}"
+    echo_red "Error: Failed to make script executable at ${SCRIPT_PATH}"
     # Clean up downloaded script if chmod fails
     rm -f "${SCRIPT_PATH}" > /dev/null 2>&1
     exit 1
@@ -59,30 +59,48 @@ echo ""
 
 # --- Post-installation Checks ---
 
+OLLAMA_INSTALLED=true
 # Check for Ollama installation
 if ! command -v ollama &> /dev/null; then
-    echo_yellow "Ollama command not found."
-    echo_yellow "Please install Ollama from https://ollama.ai for '${SCRIPT_NAME}' to function."
-    NEEDS_OLLAMA_INSTALL=true
+    echo_yellow "-------------------------------------------------------------"
+    echo_yellow "ACTION REQUIRED: Ollama command not found."
+    echo_yellow "Please install Ollama by running the following command"
+    echo_yellow "in your terminal, then re-run this installer:"
+    echo ""
+    echo_green "  curl -fsSL https://ollama.com/install.sh | sh"
+    echo ""
+    echo_yellow "-------------------------------------------------------------"
+    OLLAMA_INSTALLED=false
+    # Exit here, user needs to install Ollama first
+    exit 1
 else
     echo "Ollama found."
-    NEEDS_OLLAMA_INSTALL=false
     # Check if the default model exists if Ollama is installed
     echo "Checking for default model '${DEFAULT_MODEL}'..."
     if ! ollama list | grep -q "^${DEFAULT_MODEL}"; then
         echo_yellow "Default model '${DEFAULT_MODEL}' not found locally."
-        read -p "Do you want to attempt to pull it now? (y/N): " -n 1 -r REPLY
-        echo # Move to a new line
-        if [[ "$REPLY" =~ ^[Yy]$ ]]; then
-            echo "Attempting 'ollama pull ${DEFAULT_MODEL}'..."
-            if ollama pull "${DEFAULT_MODEL}"; then
-                echo_green "Model '${DEFAULT_MODEL}' pulled successfully."
-            else
-                echo_red "Failed to pull model '${DEFAULT_MODEL}'. Please try manually."
-            fi
-        else
-            echo "Skipping model pull. Please run 'ollama pull ${DEFAULT_MODEL}' manually before using '${SCRIPT_NAME}'."
-        fi
+        # Ask user if they want to pull the model
+        # Use a loop for clearer input handling
+        while true; do
+            read -p "Do you want to attempt to pull '${DEFAULT_MODEL}' now? (y/N): " -n 1 -r REPLY
+            echo # Move to a new line
+            case "$REPLY" in
+              [Yy]* )
+                echo "Attempting 'ollama pull ${DEFAULT_MODEL}'..."
+                if ollama pull "${DEFAULT_MODEL}"; then
+                    echo_green "Model '${DEFAULT_MODEL}' pulled successfully."
+                else
+                    echo_red "Failed to pull model '${DEFAULT_MODEL}'. Please try manually."
+                fi
+                break # Exit loop after attempting
+                ;;
+              [Nn]* | "" ) # Default to No
+                echo "Skipping model pull. Please run 'ollama pull ${DEFAULT_MODEL}' manually before using '${SCRIPT_NAME}'."
+                break # Exit loop
+                ;;
+              * ) echo "Please answer yes (y) or no (n)." ;;
+            esac
+        done
     else
         echo "Default model '${DEFAULT_MODEL}' found."
     fi
@@ -103,9 +121,10 @@ case ":$PATH:" in
 esac
 
 echo ""
-if [ "$NEEDS_OLLAMA_INSTALL" = true ]; then
-    echo_yellow "Remember to install Ollama from https://ollama.ai"
-else
+if [ "$OLLAMA_INSTALLED" = true ]; then
     echo "You should be ready to use the '${SCRIPT_NAME}' command in your Git repositories."
+else
+    # This part is less likely to be reached now as we exit if Ollama isn't found
+    echo_yellow "Remember to install Ollama before using '${SCRIPT_NAME}'."
 fi
 exit 0

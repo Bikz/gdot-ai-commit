@@ -23,7 +23,7 @@ A lightning-fast utility for Git that stages, commits with AI-generated messages
 ### Option 1: One-line installer
 
 ```bash
-curl -s [https://raw.githubusercontent.com/Bikz/git-ai-commit/main/install.sh](https://raw.githubusercontent.com/Bikz/git-ai-commit/main/install.sh) | bash
+curl -s https://raw.githubusercontent.com/Bikz/git-ai-commit/main/install.sh | bash
 ```
 
 ### Option 2: Manual installation
