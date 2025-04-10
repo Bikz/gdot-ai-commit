@@ -38,8 +38,10 @@ export PATH="$HOME/.local/bin:$PATH"
 
 ```bash
 # Pull the default model
-ollama pull llama3
+ollama run llama3.2
 ```
+
+Note: llama3.2 is the default model used by this utility and takes up 2GB of disk space to run locally. You can change it in the script if you prefer a different model.
 
 ## Usage
 
