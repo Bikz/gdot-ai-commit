@@ -1,0 +1,171 @@
+#!/bin/bash
+
+# --- git-ai-commit (g.) ---
+# Stages, commits with AI message (via Ollama) or provided message, and pushes.
+# Repository: https://github.com/Bikz/git-ai-commit
+
+# --- Configuration ---
+MODEL=${GAC_MODEL:-"llama3.2"} # Default model set to llama3.2
+OLLAMA_ENDPOINT=${GAC_OLLAMA_ENDPOINT:-"http://localhost:11434/api/chat"}
+TEMP=${GAC_TEMP:-0.7}
+# --- End Configuration ---
+
+# --- Helper Functions ---
+echo_green() {
+  echo -e "\033[0;32m$1\033[0m"
+}
+echo_red() {
+  echo -e "\033[0;31mError: $1\033[0m" >&2
+}
+echo_yellow() {
+  echo -e "\033[0;33m$1\033[0m"
+}
+# --- End Helper Functions ---
+
+
+# --- Sanity Checks ---
+if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
+  echo_red "Not inside a Git repository."
+  exit 1
+fi
+if ! command -v jq &> /dev/null; then
+    echo_red "'jq' command not found, but it is required for reliable operation."
+    echo_red "Please install jq (e.g., brew install jq, sudo apt install jq)."
+    exit 1
+fi
+if ! command -v ollama &> /dev/null; then
+    echo_red "'ollama' command not found."
+    echo_red "Please install Ollama from https://ollama.ai and ensure it's in your PATH."
+    exit 1
+fi
+# --- End Sanity Checks ---
+
+
+# --- Main Logic ---
+COMMIT_MESSAGE=""
+
+if [ -n "$1" ]; then
+  COMMIT_MESSAGE="$1"
+  echo "Using provided commit message: \"$COMMIT_MESSAGE\""
+fi
+
+# Check if the required model is available locally
+echo "Checking for Ollama model: $MODEL..."
+if ! ollama list | grep -q "^${MODEL}"; then
+  echo_yellow "Model '$MODEL' not found locally."
+  echo "Attempting to pull '$MODEL'..."
+  if ! ollama pull "$MODEL"; then
+    echo_red "Failed to pull model '$MODEL'. Please check the model name and your internet connection."
+    echo_red "You can list available models with 'ollama list' and pull manually with 'ollama pull $MODEL'."
+    exit 1
+  fi
+  echo_green "Model '$MODEL' pulled successfully."
+else
+  echo "Model '$MODEL' found locally."
+fi
+
+echo "Staging all changes ('git add .')..."
+if ! git add . ; then
+  echo_red "Failed to stage changes."
+  exit 1
+fi
+
+echo "Getting staged diff..."
+DIFF_CONTENT=$(git diff --staged)
+
+if [ -z "$DIFF_CONTENT" ]; then
+  echo_green "No changes staged to commit."
+   if [ -n "$COMMIT_MESSAGE" ]; then
+     echo_yellow "Warning: Commit message provided, but no changes were staged."
+  fi
+  exit 0
+fi
+
+if [ -z "$COMMIT_MESSAGE" ]; then
+  echo "Generating commit message via Ollama (Model: $MODEL)..."
+
+  # Construct the user prompt content separately
+  USER_PROMPT_CONTENT=$(printf 'Generate a conventional commit message for the following diff:\n\n%s' "$DIFF_CONTENT")
+
+  # Use jq to construct the JSON payload, passing variables safely
+  JSON_PAYLOAD=$(jq -n \
+    --arg model "$MODEL" \
+    --arg system_content "You are an expert programmer writing a concise Git commit message. Follow the Conventional Commits specification (e.g., fix:, feat:, chore:). Describe the changes based *only* on the provided diff. Do not add any explanations, notes, apologies, or introductory phrases like 'Here is the commit message:'. Output ONLY the commit message." \
+    --arg user_content "$USER_PROMPT_CONTENT" \
+    --argjson temp "$TEMP" \
+    '{
+      model: $model,
+      messages: [
+        {role: "system", content: $system_content},
+        {role: "user", content: $user_content}
+      ],
+      stream: false,
+      options: {
+        temperature: $temp
+      }
+    }')
+
+  if [ $? -ne 0 ]; then
+      echo_red "Failed to construct JSON payload using jq."
+      git reset > /dev/null 2>&1
+      exit 1
+  fi
+
+  # Call Ollama API
+  OLLAMA_RESPONSE=$(curl -sf -X POST "$OLLAMA_ENDPOINT" -d "$JSON_PAYLOAD")
+  CURL_EXIT_CODE=$?
+
+  if [ $CURL_EXIT_CODE -ne 0 ]; then
+      echo_red "Failed to communicate with Ollama API at $OLLAMA_ENDPOINT."
+      echo_red "Curl exit code: $CURL_EXIT_CODE. Please ensure the Ollama service is running."
+      echo_red "You can check with 'ollama ps'."
+      git reset > /dev/null 2>&1
+      exit 1
+  fi
+
+  # Parse response using jq
+  GENERATED_CONTENT=$(echo "$OLLAMA_RESPONSE" | jq -r '.message.content // empty')
+  OLLAMA_ERROR=$(echo "$OLLAMA_RESPONSE" | jq -r '.error // empty')
+
+  if [ -n "$OLLAMA_ERROR" ] && [ "$OLLAMA_ERROR" != "null" ] && [ "$OLLAMA_ERROR" != "empty" ]; then
+    echo_red "Ollama API returned an error: $OLLAMA_ERROR"
+    # This error often means the model isn't running/loaded, even if pulled.
+    echo_red "Ensure the model '$MODEL' is available and Ollama service is operational."
+    git reset > /dev/null 2>&1
+    exit 1
+  fi
+
+  COMMIT_MESSAGE=$(echo "$GENERATED_CONTENT" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//') # Trim whitespace
+
+  if [ -z "$COMMIT_MESSAGE" ]; then
+    echo_red "Ollama generated an empty or invalid commit message."
+    echo_yellow "Ollama Raw Response: $OLLAMA_RESPONSE"
+    git reset > /dev/null 2>&1
+    exit 1
+  fi
+
+  echo "Generated commit message: \"$COMMIT_MESSAGE\""
+fi
+
+echo "Committing..."
+if ! git commit -m "$COMMIT_MESSAGE"; then
+  echo_red "Git commit failed."
+  git reset > /dev/null 2>&1
+  exit 1
+fi
+echo_green "Commit successful."
+
+echo "Pushing changes..."
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+REMOTE_NAME=$(git remote | head -n 1)
+
+if [ -z "$REMOTE_NAME" ]; then
+    echo_yellow "No git remote found. Skipping push."
+elif ! git push "$REMOTE_NAME" "$CURRENT_BRANCH"; then
+    echo_red "Git push failed. Please push manually."
+    exit 0 # Exit success as commit worked
+else
+    echo_green "Changes pushed successfully to $REMOTE_NAME/$CURRENT_BRANCH."
+fi
+
+exit 0
