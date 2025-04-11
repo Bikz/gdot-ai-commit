@@ -369,14 +369,9 @@ RESPOND ONLY with the single-line commit message and nothing else." \
     exit 1
   fi
 
-  echo_success "✔ Successfully committed"
-  # Only show commit details if they contain useful information beyond the commit message
-  if [[ "$COMMIT_OUTPUT" != *"$COMMIT_MESSAGE"* ]] && [[ -n "$COMMIT_OUTPUT" ]]; then
-    echo_info "│"
-    echo_info "└ Commit Details:"
-    echo_indented "$COMMIT_OUTPUT" # Show standard Git commit output
-    echo ""
-  fi
+  # Extract only the commit hash from the output
+  local COMMIT_HASH=$(echo "$COMMIT_OUTPUT" | grep -o '\[[^]]*\]' | head -1)
+  echo_success "✔ Successfully committed $COMMIT_HASH"
 
   # --- Push ---
   local CURRENT_BRANCH REMOTE_NAME PUSH_OUTPUT GIT_PUSH_EXIT_CODE
