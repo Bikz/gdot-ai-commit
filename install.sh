@@ -141,28 +141,32 @@ guide_ollama_install() {
     echo ""
     echo_green "  https://ollama.com/download"
     echo ""
-    echo_yellow "After installing the Ollama application, run these commands to start it:"
+    echo_yellow "After installing:"
     echo_green "  1. Open the Ollama application"
-    echo_green "  2. Wait for it to initialize (might take a few seconds)"
+    echo_green "  2. Pull the required model with:"
+    echo_green "     ollama pull ${DEFAULT_MODEL}"
   elif [[ "$OS_TYPE" == "Linux" ]]; then
     # Linux Instructions
-    echo_yellow "Please install Ollama for Linux by running the following command:"
+    echo_yellow "Please install Ollama for Linux with:"
     echo ""
     echo_green "  curl -fsSL https://ollama.com/install.sh | sh"
     echo ""
-    echo_yellow "(Note: The Ollama script might require sudo privileges)."
-    echo_yellow "After installation, start the Ollama service. Examples:"
-    echo_green "  ollama serve & # Run in background (temporary)"
-    echo_green "  sudo systemctl start ollama # If using systemd"
+    echo_yellow "After installing:"
+    echo_green "  1. Start Ollama: ollama serve &"
+    echo_green "  2. Pull the required model:"
+    echo_green "     ollama pull ${DEFAULT_MODEL}"
   else
     # Other OS - General Link
-    echo_yellow "Please install Ollama for your operating system from:"
+    echo_yellow "Please install Ollama from:"
     echo ""
     echo_green "  https://ollama.com/download"
     echo ""
+    echo_yellow "After installing, pull the required model:"
+    echo_green "  ollama pull ${DEFAULT_MODEL}"
   fi
 
-  echo_yellow "Then re-run this installer script:"
+  echo ""
+  echo_yellow "Then re-run this installer:"
   echo_green "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
   echo_yellow "---------------------------------------------------------------------"
 }
@@ -170,43 +174,16 @@ guide_ollama_install() {
 guide_model_install() {
   echo_yellow "---------------------------------------------------------------------"
   echo_yellow "ACTION REQUIRED: Default model '${DEFAULT_MODEL}' is not installed"
-  echo_yellow "You need to install the ${DEFAULT_MODEL} model to use ${SCRIPT_NAME}"
-
-  # Ask if they want to install the model now
-  while true; do
-    read -p "Do you want to pull '${DEFAULT_MODEL}' now? (y/N): " -n 1 -r REPLY
-    echo # Move to a new line
-    case "$REPLY" in
-      [Yy]* )
-        echo "Pulling model '${DEFAULT_MODEL}'..."
-        echo_yellow "This may take several minutes depending on your internet connection."
-        if [[ "$DEFAULT_MODEL" == "qwen2.5-coder:1.5b" ]]; then
-            echo_yellow "Model size: ~1GB for qwen2.5-coder:1.5b" # Example size
-        fi
-
-        if ollama pull "${DEFAULT_MODEL}"; then
-          echo_green "Model '${DEFAULT_MODEL}' installed successfully!"
-          echo_yellow "---------------------------------------------------------------------"
-          return 0 # Signal success
-        else
-          echo_red "Failed to pull model '${DEFAULT_MODEL}'."
-          echo_yellow "Please check your internet connection and try again."
-          echo_yellow "You can manually install the model later with:"
-          echo_green "  ollama pull ${DEFAULT_MODEL}"
-          echo_yellow "---------------------------------------------------------------------"
-          return 1 # Signal missing requirement
-        fi
-        ;;
-      [Nn]* | "" ) # Default to No
-        echo_yellow "Skipping model installation."
-        echo_yellow "You'll need to install it manually before using ${SCRIPT_NAME}:"
-        echo_green "  ollama pull ${DEFAULT_MODEL}"
-        echo_yellow "---------------------------------------------------------------------"
-        return 1 # Signal missing requirement
-        ;;
-      * ) echo "Please answer yes (y) or no (n)." ;;
-    esac
-  done
+  
+  echo_yellow "Please install the model with:"
+  echo_green "  ollama pull ${DEFAULT_MODEL}"
+  echo_yellow "Model size: ~1GB (This may take a few minutes)"
+  
+  echo ""
+  echo_yellow "Then re-run this installer:"
+  echo_green "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
+  echo_yellow "---------------------------------------------------------------------"
+  return 1 # Signal missing requirement
 }
 # --- End Helper Functions ---
 
@@ -318,13 +295,9 @@ elif [ "$ALL_REQS_MET" = true ] && [ "$PATH_CONFIGURED" = false ]; then
     echo "==================================================="
 else # Requirements not met
   echo_red "      INSTALLATION INCOMPLETE"
-  echo ""
-  echo_red "Please address the missing requirements listed during the checks."
-  echo_red "Re-run this installer after fixing them:"
-  echo ""
-  echo_green "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
-  echo ""
   echo "==================================================="
+  # The detailed instructions have already been shown above,
+  # so we don't need to repeat them here
 fi
 echo ""
 exit 0

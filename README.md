@@ -50,6 +50,7 @@ mkdir -p ~/.local/bin
     ```
 
 3. **Ensure `~/.local/bin` is in your PATH:**
+
     Check with `echo $PATH`. If it's not listed, add it to your shell configuration file (e.g., `~/.bashrc`, `~/.zshrc`, `~/.profile`, `~/.config/fish/config.fish`). Add a line like this:
 
     ```bash
@@ -75,11 +76,11 @@ g. "fix: resolved authentication issue in login form"
 - **Automatic Check:** Once a day, the script will automatically check GitHub for a newer version. If one is found, it will print a notification suggesting you update.
 - **Manual Update:** To manually trigger an update at any time, run:
 
-  ```bash
-  g. --update
-  ```
+```bash
+g. --update
+```
 
-  This command will download the latest version of the g. script and replace your current one. You might need to restart your terminal session or run `hash -r` for the changes to take effect immediately.
+This command will download the latest version of the g. script and replace your current one. You might need to restart your terminal session or run `hash -r` for the changes to take effect immediately.
 
 ## Configuration
 
@@ -117,11 +118,19 @@ If you encounter any bugs or still facing other issues, please open an issue on 
 
 1. Remove the script file:
 
-```bash
-rm ~/.local/bin/g.
-```
+    ```bash
+    rm ~/.local/bin/g.
+    ```
 
-1. (Optional) If `~/.local/bin` was only used for this script, you can remove the `export PATH="$HOME/.local/bin:$PATH"` line from your shell configuration file (`~/.bashrc`, `~/.zshrc`, etc.) and restart your terminal.
+2. (Optional) Remove from PATH if needed:
+
+    ```bash
+    # Edit your shell config file (~/.bashrc or ~/.zshrc) and remove/comment out this line:
+    export PATH="$HOME/.local/bin:$PATH"
+
+    # Then reload your shell configuration
+    source ~/.bashrc  # or source ~/.zshrc
+    ```
 
 ### Uninstalling Ollama
 
