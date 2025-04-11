@@ -388,10 +388,8 @@ RESPOND ONLY with the single-line commit message and nothing else." \
     echo_info "◇ No git remote found. Skipping push."
   else
     # Capture stderr and stdout for push
-    exec 3>&1 # Save original stdout
     PUSH_OUTPUT=$(git push "$REMOTE_NAME" "$CURRENT_BRANCH" 2>&1)
     GIT_PUSH_EXIT_CODE=$?
-    exec 3>&- # Close fd 3
 
     if [ $GIT_PUSH_EXIT_CODE -ne 0 ]; then
       echo_error "◇ ✗ Push failed."
@@ -399,7 +397,7 @@ RESPOND ONLY with the single-line commit message and nothing else." \
       echo_indented "$PUSH_OUTPUT" # Show Git's error output
       # Exit 0 here, commit succeeded. User must resolve push.
     else
-      echo_success "◇ ✔ Successfully pushed to $REMOTE_NAME/$CURRENT_BRANCH"
+      echo_success "◇ ✔ Successfully pushed to $REMOTE_NAME ($CURRENT_BRANCH)"
     fi
   fi
 
