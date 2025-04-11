@@ -338,7 +338,7 @@ main_commit_logic() {
     local USER_PROMPT_CONTENT JSON_PAYLOAD OLLAMA_RESPONSE CURL_EXIT_CODE GENERATED_CONTENT OLLAMA_ERROR
     USER_PROMPT_CONTENT=$(printf 'Generate a conventional commit message for the following diff:\n\n%s' "$DIFF_CONTENT")
 
-    # ** Enhanced system prompt with stronger constraints and examples **
+    # ** Enhanced system prompt with stronger constraints **
     JSON_PAYLOAD=$(jq -n \
       --arg model "$MODEL" \
       --arg sys "You are a Git commit message generator that follows the Conventional Commits specification strictly.
@@ -352,17 +352,6 @@ RULES:
 - The ENTIRE message should be plain text, no more than 72 characters
 - NEVER use markdown, code blocks, backticks, JSON, or any formatting
 - NEVER include explanations or additional context
-
-EXAMPLES OF CORRECT RESPONSES:
-feat(auth): add login functionality
-fix(api): resolve timeout issue in requests
-docs(readme): update installation instructions
-refactor(utils): simplify error handling logic
-
-EXAMPLES OF INCORRECT RESPONSES:
-```feat(auth): add login functionality```
-feat(auth): add login functionality - This adds the login screen and API
-{\"type\": \"feat\", \"scope\": \"auth\", \"subject\": \"add login functionality\"}
 
 RESPOND ONLY with the single-line commit message and nothing else." \
       --arg user "$USER_PROMPT_CONTENT" \
@@ -400,13 +389,8 @@ RESPOND ONLY with the single-line commit message and nothing else." \
       exit 1
     fi
 
-    # Enhanced post-processing to strip any markdown formatting or unwanted characters
-    COMMIT_MESSAGE=$(echo "$GENERATED_CONTENT" | 
-      sed -E 's/```[a-z]*//g' |     # Remove opening code block markers with language
-      sed -E 's/```//g' |           # Remove code block markers
-      sed -E 's/`//g' |             # Remove backticks
-      sed 's/^[[:space:]]*//;s/[[:space:]]*$//' # Trim whitespace
-    )
+    # Clean up the commit message - remove markdown formatting and trim whitespace
+    COMMIT_MESSAGE=$(echo "$GENERATED_CONTENT" | tr -d '`' | sed 's/```[a-z]*//g' | sed 's/```//g' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
     if [ -z "$COMMIT_MESSAGE" ]; then 
       echo_error "Ollama generated empty message."
       echo_info "Troubleshooting steps:"
