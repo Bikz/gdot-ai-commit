@@ -293,6 +293,7 @@ sleep 1
 # --- Final Message ---
 echo "==================================================="
 if [ "$ALL_REQS_MET" = true ] && [ "$PATH_CONFIGURED" = true ]; then
+  print_logo # Print logo again on success
   echo_green "      SUCCESS! Installation complete!"
   echo_green "      You're ready to use git-ai-commit!"
   echo ""
