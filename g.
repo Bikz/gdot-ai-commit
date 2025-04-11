@@ -332,7 +332,7 @@ RESPOND ONLY with the single-line commit message and nothing else." \
     if [ $? -ne 0 ]; then echo_error "Failed to construct JSON payload using jq."; git reset >/dev/null 2>&1; exit 1; fi
 
     # Show generating message here, before the call
-    echo_info "◇ Generating commit message..." # Let user know processing is happening
+    echo_info "◇ 📝 Generating commit message..." # Let user know processing is happening
     
     OLLAMA_RESPONSE=$(curl -sf -X POST "$OLLAMA_ENDPOINT" -d "$JSON_PAYLOAD")
     CURL_EXIT_CODE=$?
@@ -345,9 +345,7 @@ RESPOND ONLY with the single-line commit message and nothing else." \
     COMMIT_MESSAGE=$(echo "$GENERATED_CONTENT" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//') # Trim whitespace
     if [ -z "$COMMIT_MESSAGE" ]; then echo_error "Ollama generated empty message."; echo_info "Raw Response: $OLLAMA_RESPONSE"; git reset >/dev/null 2>&1; exit 1; fi
 
-    echo_info "◇ 📝 Commit message generated" # Indicate generation step
     echo_info "│" # Connector
-
     echo_info "└ Generated commit message:"
     echo_info "$COMMIT_DIVIDER"
     echo_indented "$COMMIT_MESSAGE" # Print message indented
@@ -372,10 +370,13 @@ RESPOND ONLY with the single-line commit message and nothing else." \
   fi
 
   echo_success "✔ Successfully committed"
-  echo_info "│"
-  echo_info "└ Commit Details:"
-  echo_indented "$COMMIT_OUTPUT" # Show standard Git commit output
-  echo ""
+  # Only show commit details if they contain useful information beyond the commit message
+  if [[ "$COMMIT_OUTPUT" != *"$COMMIT_MESSAGE"* ]] && [[ -n "$COMMIT_OUTPUT" ]]; then
+    echo_info "│"
+    echo_info "└ Commit Details:"
+    echo_indented "$COMMIT_OUTPUT" # Show standard Git commit output
+    echo ""
+  fi
 
   # --- Push ---
   local CURRENT_BRANCH REMOTE_NAME PUSH_OUTPUT GIT_PUSH_EXIT_CODE
@@ -397,7 +398,7 @@ RESPOND ONLY with the single-line commit message and nothing else." \
       echo_indented "$PUSH_OUTPUT" # Show Git's error output
       # Exit 0 here, commit succeeded. User must resolve push.
     else
-      echo_success "◇ ✔ Successfully pushed all commits to $REMOTE_NAME"
+      echo_success "◇ ✔ Successfully pushed to $REMOTE_NAME/$CURRENT_BRANCH"
     fi
   fi
 
