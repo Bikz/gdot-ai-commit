@@ -218,10 +218,21 @@ main_commit_logic() {
       echo_info "◇ No changes staged. There are unstaged changes or untracked files."
       echo_info "  Stage them first or commit specific files."
     else
-      echo_success "✔ No changes detected or staged. Working tree clean."
+      echo_success "✔ No changes detected. Working tree clean."
+      echo_info "  Nothing to commit!"
     fi
     exit 0
   else
+    # Check if there's actual content in the diff
+    local DIFF_CONTENT
+    DIFF_CONTENT=$(git diff --staged)
+    if [ -z "$DIFF_CONTENT" ]; then 
+      echo_info "◇ Files are staged but contain no changes."
+      echo_info "  This can happen with whitespace-only changes or permission changes."
+      echo_success "✔ Nothing to commit!"
+      exit 0
+    fi
+    
     echo_info "◇ $staged_files_count staged files:"
     while IFS= read -r staged_file; do
         echo_info "  $staged_file"
@@ -251,7 +262,11 @@ main_commit_logic() {
     # --- Diff (silent) ---
     local DIFF_CONTENT
     DIFF_CONTENT=$(git diff --staged)
-    if [ -z "$DIFF_CONTENT" ]; then echo_success "✔ No diff content found for staged files."; exit 0; fi # Should not happen if files staged
+    if [ -z "$DIFF_CONTENT" ]; then 
+      # This should never happen now as we check earlier, but keeping as a safeguard
+      echo_success "✔ No diff content found for staged files."; 
+      exit 0; 
+    fi
 
     # --- AI Generation ---
     local USER_PROMPT_CONTENT JSON_PAYLOAD OLLAMA_RESPONSE CURL_EXIT_CODE GENERATED_CONTENT OLLAMA_ERROR
