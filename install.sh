@@ -91,7 +91,7 @@ check_requirements() {
 }
 
 guide_git_install() {
-  echo_yellow "====================================================="
+  echo_info "====================================================="
   echo_yellow "ACTION REQUIRED: Git is not installed or not in PATH"
   echo_yellow "Git is required to use ${SCRIPT_NAME}."
   local OS_TYPE
@@ -111,12 +111,12 @@ guide_git_install() {
   echo ""
   echo_yellow "Then re-run this installer script:"
   echo_info "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
-  echo_yellow "====================================================="
+  echo_info "====================================================="
   return 1
 }
 
 guide_jq_install() {
-  echo_yellow "====================================================="
+  echo_info "====================================================="
   echo_yellow "ACTION REQUIRED: jq is not installed or not in PATH"
   echo_yellow "'jq' is required by ${SCRIPT_NAME} for processing AI responses."
   local OS_TYPE
@@ -134,13 +134,13 @@ guide_jq_install() {
   echo ""
   echo_yellow "Then re-run this installer script:"
   echo_info "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
-  echo_yellow "====================================================="
+  echo_info "====================================================="
   return 1
 }
 
 
 guide_ollama_install() {
-   echo_yellow "====================================================="
+   echo_info "====================================================="
   echo_yellow "ACTION REQUIRED: Ollama is not installed or not in PATH"
   local OS_TYPE
   OS_TYPE=$(uname -s)
@@ -178,12 +178,12 @@ guide_ollama_install() {
   echo ""
   echo_info "Then re-run this installer:"
   echo_info "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
-  echo_yellow "====================================================="
+  echo_info "====================================================="
   return 1 # Signal missing requirement
 }
 
 guide_model_install() {
-  echo_yellow "====================================================="
+  echo_info "====================================================="
   echo_yellow "ACTION REQUIRED: Default model '${DEFAULT_MODEL}' is not installed"
   
   echo_info "Please install the model with:"
@@ -193,7 +193,7 @@ guide_model_install() {
   echo ""
   echo_info "Then re-run this installer:"
   echo_info "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
-  echo_yellow "====================================================="
+  echo_info "====================================================="
   return 1 # Signal missing requirement
 }
 # --- End Helper Functions ---
@@ -258,7 +258,7 @@ if ! check_requirements; then
   ALL_REQS_MET=false
 else
   echo_green "All requirements met! You're good to go."
-  echo_yellow "====================================================="
+  echo_info "====================================================="
 fi
 
 # --- Final Message ---
