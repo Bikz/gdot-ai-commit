@@ -143,17 +143,56 @@ perform_update() {
   (
     set -e # Apply error exit only within this subshell
     show_logo
-    echo_info "Attempting to update '$SCRIPT_FILENAME' from $REMOTE_SCRIPT_URL..."
+    echo_info "Checking for updates to '$SCRIPT_FILENAME'..."
+    
+    # Check dependencies for the update
     if ! command -v curl &>/dev/null || ! command -v chmod &>/dev/null || ! command -v mv &>/dev/null || ! command -v mktemp &>/dev/null; then
         echo_error "Update failed: Required command missing ('curl', 'chmod', 'mv', 'mktemp')."; exit 1;
     fi
+    
+    # Find a suitable hash command
+    local hash_cmd
+    if ! hash_cmd=$(get_hash_command); then
+        echo_error "Update failed: No suitable hashing command found."; exit 1;
+    fi
+    
+    # Calculate hash of current script
+    local current_hash
+    current_hash=$(cat "$INSTALL_PATH" | calculate_hash "$hash_cmd")
+    if [[ -z "$current_hash" ]]; then
+        echo_error "Update failed: Could not calculate hash of local script."; exit 1;
+    fi
+    
+    # Fetch remote script content
+    echo_info "Downloading latest version..."
+    local remote_content
+    remote_content=$(curl -fsSL "$REMOTE_SCRIPT_URL")
+    if [[ $? -ne 0 ]] || [[ -z "$remote_content" ]]; then
+        echo_error "Update failed: Could not download the latest version."; exit 1;
+    fi
+    
+    # Calculate hash of remote script content
+    local remote_hash
+    remote_hash=$(echo "$remote_content" | calculate_hash "$hash_cmd")
+    if [[ -z "$remote_hash" ]]; then
+        echo_error "Update failed: Could not calculate hash of remote script."; exit 1;
+    fi
+    
+    # Compare hashes
+    if [[ "$current_hash" == "$remote_hash" ]]; then
+        echo_success "✔ You already have the latest version of '$SCRIPT_FILENAME'!"
+        exit 0
+    fi
+    
     local temp_file
     temp_file=$(mktemp "/tmp/${SCRIPT_FILENAME}.XXXXXX")
     # Ensure temp file is cleaned up on unexpected exit within subshell
     trap 'rm -f "$temp_file"' EXIT HUP INT QUIT TERM
-    echo_info "Downloading latest version..."
-    curl -fsSL "$REMOTE_SCRIPT_URL" -o "$temp_file" # set -e handles curl failure
+    
+    # Save the downloaded content to temp file
+    echo "$remote_content" > "$temp_file"
     if [[ ! -s "$temp_file" ]]; then echo_error "Update failed: Downloaded file is empty."; exit 1; fi
+    
     # Basic syntax check
     if command -v bash &>/dev/null && ! bash -n "$temp_file"; then echo_error "Update failed: Downloaded script has syntax errors."; exit 1; fi
     echo_success "✔ Downloaded script passed syntax check."
