@@ -20,6 +20,17 @@ __pycache__/
 Thumbs.db
 ehthumbs.db
 
+# Test files
+another_test.txt
+another_test_file.txt
+final_test.txt
+test_file.txt
+test_install.sh
+
+# Temporary files
+*.tmp
+*.temp
+
 # Node modules (if you ever use Node tools)
 node_modules/
 
