@@ -5,7 +5,7 @@ A lightning-fast utility for Git that stages, commits with AI-generated messages
 ## Features
 
 - **Ultra-fast workflow**: Stage, commit, and push with a single command.
-- **AI-powered commit messages**: Uses Ollama to generate meaningful commit messages locally.
+- **AI-powered commit messages**: Uses Ollama with the lightweight qwen2.5-coder:1.5b model (~1GB).
 - **Privacy-focused**: All processing happens on your machine.
 - **Minimal keystrokes**: Just type `g.` and you're done.
 - **Works with your flow**: Optionally provide your own commit message.
