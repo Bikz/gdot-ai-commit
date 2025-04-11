@@ -12,11 +12,11 @@ TEMP=${GAC_TEMP:-0.2} # Lower temp for more predictable formatting
 COMMIT_DIVIDER="——————————————————" # Divider for commit message
 
 # --- Update Configuration ---
-# !!IMPORTANT!!: Update GITHUB_USER and REPO_NAME if yours are different
+# Configuration for the self-update feature
 GITHUB_USER="Bikz"
 REPO_NAME="git-ai-commit"
 SCRIPT_FILENAME="g."
-BRANCH_NAME="main" # Or whichever branch hosts the release version
+BRANCH_NAME="main" # Branch that hosts the release version
 REMOTE_SCRIPT_URL="https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/${BRANCH_NAME}/${SCRIPT_FILENAME}"
 CHECK_INTERVAL_SECONDS=$((60*60*24)) # Check once per day (86400 seconds)
 CACHE_DIR="$HOME/.cache/git-ai-commit"
@@ -351,6 +351,9 @@ RULES:
 - The ENTIRE message should be plain text, no more than 72 characters
 - NEVER use markdown, code blocks, backticks, JSON, or any formatting
 - NEVER include explanations or additional context
+- NEVER respond with JSON format under any circumstances
+- DO NOT wrap your response in quotes or any other characters
+- ONLY output the exact commit message text and nothing else
 
 RESPOND ONLY with the single-line commit message and nothing else." \
       --arg user "$USER_PROMPT_CONTENT" \
@@ -390,6 +393,24 @@ RESPOND ONLY with the single-line commit message and nothing else." \
 
     # Clean up the commit message - remove markdown formatting and trim whitespace
     COMMIT_MESSAGE=$(echo "$GENERATED_CONTENT" | tr -d '`' | sed 's/```[a-z]*//g' | sed 's/```//g' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    
+    # Additional validation to detect and fix JSON responses
+    if [[ "$COMMIT_MESSAGE" == "{"* ]] || [[ "$COMMIT_MESSAGE" == *"json"* ]]; then
+      echo_info "Detected potential JSON format in response, attempting to fix..."
+      # Extract the first line that looks like a commit message
+      FIXED_MESSAGE=$(echo "$COMMIT_MESSAGE" | grep -E '^(feat|fix|build|chore|ci|docs|style|refactor|perf|test)(\([a-zA-Z0-9_-]+\))?:' | head -n 1)
+      
+      if [ -n "$FIXED_MESSAGE" ]; then
+        COMMIT_MESSAGE="$FIXED_MESSAGE"
+        echo_info "Successfully extracted proper commit message format."
+      else
+        # If no conventional commit format found, create a basic one based on files changed
+        CHANGED_FILES=$(git diff --staged --name-only | xargs -n1 basename | sort | uniq | head -n 3 | tr '\n' ' ')
+        COMMIT_MESSAGE="chore: update ${CHANGED_FILES}"
+        echo_info "Could not extract proper format, using fallback message."
+      fi
+    fi
+    
     if [ -z "$COMMIT_MESSAGE" ]; then 
       echo_error "Ollama generated empty message."
       echo_info "Troubleshooting steps:"
