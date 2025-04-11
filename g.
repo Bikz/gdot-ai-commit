@@ -234,9 +234,29 @@ main_commit_logic() {
   ( check_for_update "$CHECK_INTERVAL_SECONDS" >& /dev/null & )
 
   # --- Sanity Checks ---
-  if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then echo_error "Not inside a Git repository."; exit 1; fi
-  if ! command -v jq &>/dev/null; then echo_error "'jq' command not found."; echo_info "Install via package manager (e.g., brew install jq)."; exit 1; fi
-  if ! command -v ollama &>/dev/null; then echo_error "'ollama' command not found."; echo_info "Install from https://ollama.ai."; exit 1; fi
+  if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then 
+    echo_error "Not inside a Git repository."
+    echo_info "Please navigate to a Git repository directory and try again."
+    echo_info "If this is a new project, initialize it with 'git init' first."
+    exit 1 
+  fi
+  
+  if ! command -v jq &>/dev/null; then 
+    echo_error "'jq' command not found."
+    echo_info "Install via package manager:"
+    echo_info "  • macOS: brew install jq"
+    echo_info "  • Ubuntu/Debian: sudo apt install jq"
+    echo_info "  • Fedora/RHEL: sudo dnf install jq"
+    echo_info "  • Windows: choco install jq or scoop install jq"
+    exit 1 
+  fi
+  
+  if ! command -v ollama &>/dev/null; then 
+    echo_error "'ollama' command not found."
+    echo_info "Install from https://ollama.ai"
+    echo_info "After installing, run: ollama pull $MODEL"
+    exit 1 
+  fi
   # --- End Sanity Checks ---
 
   echo "" # Start output with a blank line
@@ -291,11 +311,18 @@ main_commit_logic() {
     echo ""
   else
     # --- Model Check (silent unless error) ---
-    if ! ollama list | grep -q "^${MODEL}"; then
-        echo_info "◇ Model '$MODEL' not found locally. Attempting to pull..."
-        # Run ollama pull in foreground as it requires user attention/time
-        if ! ollama pull "$MODEL"; then echo_error "Failed to pull model '$MODEL'."; echo_info "Check name/internet. 'ollama pull $MODEL'."; exit 1; fi
-        echo_success "✔ Model '$MODEL' pulled successfully."
+    if ! ollama list | grep -q "$MODEL"; then
+        echo_info "Model '$MODEL' not found. Attempting to download..."
+        if ! ollama pull "$MODEL"; then 
+          echo_error "Failed to pull model '$MODEL'."
+          echo_info "Troubleshooting steps:"
+          echo_info "  1. Check your internet connection"
+          echo_info "  2. Verify the model name is correct (current: $MODEL)"
+          echo_info "  3. Try manually with: ollama pull $MODEL"
+          echo_info "  4. Check Ollama service status with: ollama ps"
+          exit 1
+        fi
+        echo_success "Model '$MODEL' successfully downloaded."
     fi
 
     # --- Diff (silent) ---
@@ -335,14 +362,41 @@ RESPOND ONLY with the single-line commit message and nothing else." \
     
     OLLAMA_RESPONSE=$(curl -sf -X POST "$OLLAMA_ENDPOINT" -d "$JSON_PAYLOAD")
     CURL_EXIT_CODE=$?
-    if [ $CURL_EXIT_CODE -ne 0 ]; then echo_error "Failed to communicate with Ollama API at $OLLAMA_ENDPOINT."; echo_info "Curl exit code: $CURL_EXIT_CODE. Ensure Ollama service running ('ollama ps')."; git reset >/dev/null 2>&1; exit 1; fi
+    if [ $CURL_EXIT_CODE -ne 0 ]; then 
+      echo_error "Failed to communicate with Ollama API at $OLLAMA_ENDPOINT."
+      echo_info "Troubleshooting steps:"
+      echo_info "  1. Ensure Ollama service is running: ollama ps"
+      echo_info "  2. Check if the endpoint is correct: $OLLAMA_ENDPOINT"
+      echo_info "  3. Restart Ollama service if needed"
+      echo_info "  4. Curl exit code: $CURL_EXIT_CODE (0=success)"
+      git reset >/dev/null 2>&1
+      exit 1
+    fi
 
     GENERATED_CONTENT=$(echo "$OLLAMA_RESPONSE" | jq -r '.message.content // empty')
     OLLAMA_ERROR=$(echo "$OLLAMA_RESPONSE" | jq -r '.error // empty')
-    if [ -n "$OLLAMA_ERROR" ] && [ "$OLLAMA_ERROR" != "null" ] && [ "$OLLAMA_ERROR" != "empty" ]; then echo_error "Ollama API error: $OLLAMA_ERROR"; echo_info "Ensure model '$MODEL' available/Ollama operational."; git reset >/dev/null 2>&1; exit 1; fi
+    if [ -n "$OLLAMA_ERROR" ] && [ "$OLLAMA_ERROR" != "null" ] && [ "$OLLAMA_ERROR" != "empty" ]; then 
+      echo_error "Ollama API error: $OLLAMA_ERROR"
+      echo_info "Troubleshooting steps:"
+      echo_info "  1. Ensure model '$MODEL' is available: ollama list"
+      echo_info "  2. Check if Ollama is operational: ollama ps"
+      echo_info "  3. Try pulling the model again: ollama pull $MODEL"
+      echo_info "  4. Check for Ollama updates: ollama upgrade"
+      git reset >/dev/null 2>&1
+      exit 1
+    fi
 
     COMMIT_MESSAGE=$(echo "$GENERATED_CONTENT" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//') # Trim whitespace
-    if [ -z "$COMMIT_MESSAGE" ]; then echo_error "Ollama generated empty message."; echo_info "Raw Response: $OLLAMA_RESPONSE"; git reset >/dev/null 2>&1; exit 1; fi
+    if [ -z "$COMMIT_MESSAGE" ]; then 
+      echo_error "Ollama generated empty message."
+      echo_info "Troubleshooting steps:"
+      echo_info "  1. Check if your changes are meaningful (not just whitespace)"
+      echo_info "  2. Try again or provide your own message: g. \"your message\""
+      echo_info "  3. Try a different model by setting GAC_MODEL environment variable"
+      echo_info "Raw Response: $OLLAMA_RESPONSE"
+      git reset >/dev/null 2>&1
+      exit 1
+    fi
 
     echo_info "│" # Connector
     echo_info "└ Generated commit message:"
@@ -362,6 +416,10 @@ RESPOND ONLY with the single-line commit message and nothing else." \
 
   if [ $GIT_COMMIT_EXIT_CODE -ne 0 ]; then
     echo_error "Git commit failed."
+    echo_info "Troubleshooting steps:"
+    echo_info "  1. Check if you have configured your Git user.name and user.email"
+    echo_info "  2. Ensure you have permission to commit to this repository"
+    echo_info "  3. Check if there are pre-commit hooks that might be failing"
     echo_info "└ Commit Output:"
     echo_indented "$COMMIT_OUTPUT" # Show Git's error output
     git reset >/dev/null 2>&1 # Attempt to unstage on failure
@@ -393,6 +451,11 @@ RESPOND ONLY with the single-line commit message and nothing else." \
 
     if [ $GIT_PUSH_EXIT_CODE -ne 0 ]; then
       echo_error "◇ ✗ Push failed."
+      echo_info "Troubleshooting steps:"
+      echo_info "  1. Check if you have permission to push to $REMOTE_NAME"
+      echo_info "  2. Ensure your branch is not behind the remote (try git pull first)"
+      echo_info "  3. Check if there are pre-push hooks that might be failing"
+      echo_info "  4. Verify your network connection and remote URL"
       echo_info "└ Push Output:"
       echo_indented "$PUSH_OUTPUT" # Show Git's error output
       # Exit 0 here, commit succeeded. User must resolve push.
