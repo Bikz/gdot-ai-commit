@@ -5,7 +5,7 @@
 GITHUB_USER="Bikz"
 REPO_NAME="git-ai-commit"
 SCRIPT_NAME="g."
-DEFAULT_MODEL="llama3.2" # Default model to check for
+DEFAULT_MODEL="qwen2.5-coder:1.5b" # Default model to check for
 BRANCH="main"
 INSTALL_DIR="$HOME/.local/bin"
 # --- End Configuration ---
@@ -180,10 +180,8 @@ guide_model_install() {
       [Yy]* )
         echo "Pulling model '${DEFAULT_MODEL}'..."
         echo_yellow "This may take several minutes depending on your internet connection."
-        if [[ "$DEFAULT_MODEL" == "llama3.2" ]]; then
-            echo_yellow "Model size: ~4.7GB for llama3.2:latest" # Example size
-        elif [[ "$DEFAULT_MODEL" == "mistral" ]]; then
-             echo_yellow "Model size: ~4.1GB for mistral:latest" # Example size
+        if [[ "$DEFAULT_MODEL" == "qwen2.5-coder:1.5b" ]]; then
+            echo_yellow "Model size: ~1GB for qwen2.5-coder:1.5b" # Example size
         fi
 
         if ollama pull "${DEFAULT_MODEL}"; then

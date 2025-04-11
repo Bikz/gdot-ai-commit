@@ -6,7 +6,7 @@
 # Repository: https://github.com/Bikz/git-ai-commit
 
 # --- Configuration ---
-MODEL=${GAC_MODEL:-"llama3.2"} # Default model set to llama3.2
+MODEL=${GAC_MODEL:-"qwen2.5-coder:1.5b"} # Default model set to qwen2.5-coder:1.5b (small & fast)
 OLLAMA_ENDPOINT=${GAC_OLLAMA_ENDPOINT:-"http://localhost:11434/api/chat"}
 TEMP=${GAC_TEMP:-0.2} # Lower temp for more predictable formatting
 DIVIDER="-----------------------------------------"
