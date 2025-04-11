@@ -39,15 +39,15 @@ mkdir -p ~/.local/bin
 
 1. **Download the script:**
 
-```bash
-curl -s https://raw.githubusercontent.com/Bikz/git-ai-commit/main/g -o ~/.local/bin/g.
-```
+    ```bash
+    curl -s https://raw.githubusercontent.com/Bikz/git-ai-commit/main/g -o ~/.local/bin/g.
+    ```
 
 2. **Make it executable:**
 
-```bash
-chmod +x ~/.local/bin/g.
-```
+    ```bash
+    chmod +x ~/.local/bin/g.
+    ```
 
 3. **Ensure `~/.local/bin` is in your PATH:**
     Check with `echo $PATH`. If it's not listed, add it to your shell configuration file (e.g., `~/.bashrc`, `~/.zshrc`, `~/.profile`, `~/.config/fish/config.fish`). Add a line like this:
@@ -86,7 +86,7 @@ g. "fix: resolved authentication issue in login form"
 You can override defaults using environment variables before running the script (e.g., `GAC_MODEL=mistral g.`) or by editing the `g.` script file (`~/.local/bin/g.`) directly:
 
 - **`MODEL`**: The Ollama model to use (default: "qwen2.5-coder:1.5b"). Change this if you prefer another model (e.g., "llama3", "mistral", "codegemma"). Make sure you pull it first (`ollama pull <model_name>`).
-- **`OLLAMA_ENDPOINT`**: The URL for the Ollama API (default: "http://localhost:11434/api/chat").
+- **`OLLAMA_ENDPOINT`**: The URL for the Ollama API (default: "<http://localhost:11434/api/chat>").
 - **`TEMP`**: Temperature setting for generation (default: 0.2).
 
 ## How it works
