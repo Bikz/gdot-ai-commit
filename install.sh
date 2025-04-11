@@ -91,7 +91,7 @@ check_requirements() {
 }
 
 guide_git_install() {
-  echo_yellow "---------------------------------------------------------------------"
+  echo_yellow "====================================================="
   echo_yellow "ACTION REQUIRED: Git is not installed or not in PATH"
   echo_yellow "Git is required to use ${SCRIPT_NAME}."
   local OS_TYPE
@@ -111,11 +111,12 @@ guide_git_install() {
   echo ""
   echo_yellow "Then re-run this installer script:"
   echo_info "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
+  echo_yellow "====================================================="
   return 1
 }
 
 guide_jq_install() {
-  echo_yellow "---------------------------------------------------------------------"
+  echo_yellow "====================================================="
   echo_yellow "ACTION REQUIRED: jq is not installed or not in PATH"
   echo_yellow "'jq' is required by ${SCRIPT_NAME} for processing AI responses."
   local OS_TYPE
@@ -133,12 +134,13 @@ guide_jq_install() {
   echo ""
   echo_yellow "Then re-run this installer script:"
   echo_info "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
+  echo_yellow "====================================================="
   return 1
 }
 
 
 guide_ollama_install() {
-   echo_yellow "---------------------------------------------------------------------"
+   echo_yellow "====================================================="
   echo_yellow "ACTION REQUIRED: Ollama is not installed or not in PATH"
   local OS_TYPE
   OS_TYPE=$(uname -s)
@@ -176,11 +178,12 @@ guide_ollama_install() {
   echo ""
   echo_info "Then re-run this installer:"
   echo_info "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
+  echo_yellow "====================================================="
   return 1 # Signal missing requirement
 }
 
 guide_model_install() {
-  echo_yellow "---------------------------------------------------------------------"
+  echo_yellow "====================================================="
   echo_yellow "ACTION REQUIRED: Default model '${DEFAULT_MODEL}' is not installed"
   
   echo_info "Please install the model with:"
@@ -190,6 +193,7 @@ guide_model_install() {
   echo ""
   echo_info "Then re-run this installer:"
   echo_info "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
+  echo_yellow "====================================================="
   return 1 # Signal missing requirement
 }
 # --- End Helper Functions ---
@@ -249,20 +253,21 @@ echo ""
 # --- Post-installation Checks ---
 echo_info "Running post-installation checks..."
 ALL_REQS_MET=true
-# Removed the opening divider here since guide functions add their own
+# No divider here - guide functions will add their own
 if ! check_requirements; then
   ALL_REQS_MET=false
 else
   echo_green "All requirements met! You're good to go."
+  echo_yellow "====================================================="
 fi
-echo_yellow "---------------------------------------------------------------------"
 
 # --- Final Message ---
-echo_yellow "====================================================="
+# No divider here - we'll add it in each condition branch
 if [ "$ALL_REQS_MET" = true ] && [ "$PATH_CONFIGURED" = true ]; then
+  echo_info "====================================================="
   echo_green "      SUCCESS! Installation complete!"
   echo_green "      You're ready to use git-ai-commit!"
-  echo_yellow "====================================================="
+  echo_info "====================================================="
   echo ""
   echo_info " To use it, navigate to a Git repository with changes"
   echo_info " and simply run:"
@@ -278,16 +283,19 @@ if [ "$ALL_REQS_MET" = true ] && [ "$PATH_CONFIGURED" = true ]; then
   echo_green " Happy committing!"
 
 elif [ "$ALL_REQS_MET" = true ] && [ "$PATH_CONFIGURED" = false ]; then
+    echo_info "====================================================="
     echo_yellow "      ALMOST THERE!"
     echo ""
     echo_info "Script installed and requirements met,"
     echo_yellow "but your PATH needs configuration (see above)."
     echo ""
     echo_info "Once PATH is updated, '${SCRIPT_NAME}' will be ready to use!"
-    echo_yellow "====================================================="
+    echo_info "====================================================="
 else # Requirements not met
+  # Only need one divider at the top and one at the bottom for the final message
+  echo_info "====================================================="
   echo_red "      INSTALLATION INCOMPLETE"
-  echo_yellow "====================================================="
+  echo_info "====================================================="
   # The detailed instructions have already been shown above,
   # so we don't need to repeat them here
 fi
