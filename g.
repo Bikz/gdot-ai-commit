@@ -353,7 +353,7 @@ RULES:
 - NEVER include explanations or additional context
 - NEVER respond with JSON format under any circumstances
 - DO NOT wrap your response in quotes or any other characters
-- ONLY output the exact commit message text and nothing else
+- ONLY output the exact commit message text and nothing else. Do not explain or justify further.
 
 RESPOND ONLY with the single-line commit message and nothing else." \
       --arg user "$USER_PROMPT_CONTENT" \
