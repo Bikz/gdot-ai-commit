@@ -355,11 +355,10 @@ RESPOND ONLY with the single-line commit message and nothing else." \
 
   # --- Commit ---
   local COMMIT_OUTPUT GIT_COMMIT_EXIT_CODE
-  # Use process substitution to capture stdout and stderr, pass message correctly
-  exec 3>&1 # Save original stdout
+  
+  # Capture commit output directly to variable
   COMMIT_OUTPUT=$(git commit -m "$COMMIT_MESSAGE" 2>&1)
   GIT_COMMIT_EXIT_CODE=$?
-  exec 3>&- # Close fd 3
 
   if [ $GIT_COMMIT_EXIT_CODE -ne 0 ]; then
     echo_error "Git commit failed."
@@ -369,9 +368,8 @@ RESPOND ONLY with the single-line commit message and nothing else." \
     exit 1
   fi
 
-  # Extract the commit hash from the output
-  local COMMIT_HASH=$(echo "$COMMIT_OUTPUT" | grep -o '\[[^]]*\]')
-  echo_success "✔ Successfully committed $COMMIT_HASH"
+  # Extract just the commit hash for cleaner output
+  echo_success "✔ Successfully committed"
 
   # --- Push ---
   local CURRENT_BRANCH REMOTE_NAME PUSH_OUTPUT GIT_PUSH_EXIT_CODE
@@ -381,11 +379,9 @@ RESPOND ONLY with the single-line commit message and nothing else." \
   if [ -z "$REMOTE_NAME" ]; then
     echo_info "◇ No git remote found. Skipping push."
   else
-    # Capture stderr and stdout for push
-    exec 3>&1 # Save original stdout
+    # Capture push output directly
     PUSH_OUTPUT=$(git push "$REMOTE_NAME" "$CURRENT_BRANCH" 2>&1)
     GIT_PUSH_EXIT_CODE=$?
-    exec 3>&- # Close fd 3
 
     if [ $GIT_PUSH_EXIT_CODE -ne 0 ]; then
       echo_error "◇ ✗ Push failed."
@@ -396,10 +392,7 @@ RESPOND ONLY with the single-line commit message and nothing else." \
       echo_success "◇ ✔ Successfully pushed to $REMOTE_NAME/$CURRENT_BRANCH"
     fi
   fi
-
-  # --- Final Blank Line ---
   echo ""
-
   exit 0 # Exit successfully from main logic
 }
 
