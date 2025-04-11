@@ -369,7 +369,7 @@ RESPOND ONLY with the single-line commit message and nothing else." \
     exit 1
   fi
 
-  # Extract only the commit hash from the output
+  # Extract the commit hash from the output
   local COMMIT_HASH=$(echo "$COMMIT_OUTPUT" | grep -o '\[[^]]*\]' | head -1)
   echo_success "✔ Successfully committed $COMMIT_HASH"
 
