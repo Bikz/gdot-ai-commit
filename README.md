@@ -9,6 +9,7 @@ A lightning-fast utility for Git that stages, commits with AI-generated messages
 - **Privacy-focused**: All processing happens on your machine.
 - **Minimal keystrokes**: Just type `g.` and you're done.
 - **Works with your flow**: Optionally provide your own commit message.
+- **Clean, informative output**: Provides clear feedback at each step of the process.
 - **Automatic Update Notifications**: Checks daily for new versions and notifies you.
 - **Simple Manual Update**: Use `g. --update` to get the latest version anytime.
 
