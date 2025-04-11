@@ -346,7 +346,6 @@ if ! check_requirements; then
   ALL_REQS_MET=false
 else
   echo_green "All requirements met! You're good to go."
-  echo_info "====================================================="
 fi
 
 # --- Final Message ---
@@ -368,7 +367,9 @@ if [ "$ALL_REQS_MET" = true ] && [ "$PATH_CONFIGURED" = true ]; then
   echo_info " To provide your own message, use:"
   echo_yellow "   g. \"Your awesome commit message\""
   echo ""
-  echo_yellow " NOTE: You may need to restart your terminal or run 'hash -r'"
+  echo_yellow " NOTE: You may need to restart your terminal or run:"
+  echo_yellow "   source ~/.zshrc  # or your shell's config file"
+  echo_yellow "   hash -r"
   echo_yellow " to refresh your command hash table before using g."
   echo ""
   echo_green " Happy committing!"
