@@ -331,7 +331,6 @@ RESPOND ONLY with the single-line commit message and nothing else." \
 
     if [ $? -ne 0 ]; then echo_error "Failed to construct JSON payload using jq."; git reset >/dev/null 2>&1; exit 1; fi
 
-    # Show generating message here, before the call
     echo_info "◇ 📝 Generating commit message..." # Let user know processing is happening
     
     OLLAMA_RESPONSE=$(curl -sf -X POST "$OLLAMA_ENDPOINT" -d "$JSON_PAYLOAD")
@@ -345,11 +344,8 @@ RESPOND ONLY with the single-line commit message and nothing else." \
     COMMIT_MESSAGE=$(echo "$GENERATED_CONTENT" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//') # Trim whitespace
     if [ -z "$COMMIT_MESSAGE" ]; then echo_error "Ollama generated empty message."; echo_info "Raw Response: $OLLAMA_RESPONSE"; git reset >/dev/null 2>&1; exit 1; fi
 
-    # Clear the "Generating" line and show the result
-    echo -ne "\033[1A\033[K" # Move up one line and clear it
-    echo_info "◇ 📝 Generated commit message:" # Replace with the completion message
     echo_info "│" # Connector
-    echo_info "└ Message:"
+    echo_info "└ Generated commit message:"
     echo_info "$COMMIT_DIVIDER"
     echo_indented "$COMMIT_MESSAGE" # Print message indented
     echo_info "$COMMIT_DIVIDER"
