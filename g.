@@ -357,7 +357,7 @@ RESPOND ONLY with the single-line commit message and nothing else." \
   local COMMIT_OUTPUT GIT_COMMIT_EXIT_CODE
   # Use process substitution to capture stdout and stderr, pass message correctly
   exec 3>&1 # Save original stdout
-  COMMIT_OUTPUT=$(git commit -m "$COMMIT_MESSAGE" 2>&1 >&3)
+  COMMIT_OUTPUT=$(git commit -m "$COMMIT_MESSAGE" 2>&1)
   GIT_COMMIT_EXIT_CODE=$?
   exec 3>&- # Close fd 3
 
@@ -370,7 +370,7 @@ RESPOND ONLY with the single-line commit message and nothing else." \
   fi
 
   # Extract the commit hash from the output
-  local COMMIT_HASH=$(echo "$COMMIT_OUTPUT" | grep -o '\[[^]]*\]' | head -1)
+  local COMMIT_HASH=$(echo "$COMMIT_OUTPUT" | grep -o '\[[^]]*\]')
   echo_success "✔ Successfully committed $COMMIT_HASH"
 
   # --- Push ---
@@ -383,7 +383,7 @@ RESPOND ONLY with the single-line commit message and nothing else." \
   else
     # Capture stderr and stdout for push
     exec 3>&1 # Save original stdout
-    PUSH_OUTPUT=$(git push "$REMOTE_NAME" "$CURRENT_BRANCH" 2>&1 >&3)
+    PUSH_OUTPUT=$(git push "$REMOTE_NAME" "$CURRENT_BRANCH" 2>&1)
     GIT_PUSH_EXIT_CODE=$?
     exec 3>&- # Close fd 3
 
