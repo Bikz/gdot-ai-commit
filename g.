@@ -26,7 +26,7 @@ INSTALL_PATH="$0" # Assumes script is run from PATH or directly
 
 # --- Helper Functions ---
 # Simplified color scheme: white for info, green for success, red for error
-echo_info() { echo -e "$1"; } # White/Default
+echo_info() { echo -e "\033[0;37m$1\033[0m"; } # White color
 echo_success() { echo -e "\033[0;32m$1\033[0m"; } # Green
 echo_error() { echo -e "\033[0;31mError: $1\033[0m" >&2; } # Red
 echo_indented() { # Print indented text

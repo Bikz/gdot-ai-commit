@@ -23,6 +23,9 @@ echo_red() {
 echo_yellow() {
   echo -e "\033[0;33m$1\033[0m" # Warning/Info color
 }
+echo_info() {
+  echo -e "\033[0;37m$1\033[0m" # White color
+}
 
 # --- ASCII Art Function ---
 # Prints the logo with specific colors using the new 'g.' art
@@ -93,18 +96,18 @@ guide_git_install() {
   echo_yellow "Please install Git for your system:"
   echo ""
   if [[ "$OS_TYPE" == "Darwin" ]]; then
-    echo_green "  On macOS (using Homebrew): brew install git"
-    echo_green "  Or download from: https://git-scm.com/download/mac"
+    echo_info "  On macOS (using Homebrew): brew install git"
+    echo_info "  Or download from: https://git-scm.com/download/mac"
   elif [[ "$OS_TYPE" == "Linux" ]]; then
-      echo_yellow "  On Debian/Ubuntu: sudo apt update && sudo apt install git"
-      echo_yellow "  On Fedora: sudo dnf install git"
-      echo_yellow "  Or check: https://git-scm.com/download/linux"
+      echo_info "  On Debian/Ubuntu: sudo apt update && sudo apt install git"
+      echo_info "  On Fedora: sudo dnf install git"
+      echo_info "  Or check: https://git-scm.com/download/linux"
   else
-      echo_green "  Download from: https://git-scm.com/download"
+      echo_info "  Download from: https://git-scm.com/download"
   fi
   echo ""
   echo_yellow "Then re-run this installer script:"
-  echo_green "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
+  echo_info "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
   echo_yellow "---------------------------------------------------------------------"
 }
 
@@ -116,16 +119,16 @@ guide_jq_install() {
   echo_yellow "Please install jq for your system:"
   echo ""
   if [[ "$OS_TYPE" == "Darwin" ]]; then
-      echo_green "  On macOS (using Homebrew): brew install jq"
+      echo_info "  On macOS (using Homebrew): brew install jq"
   elif [[ "$OS_TYPE" == "Linux" ]]; then
-      echo_yellow "  On Debian/Ubuntu: sudo apt update && sudo apt install jq"
-      echo_yellow "  On Fedora: sudo dnf install jq"
+      echo_info "  On Debian/Ubuntu: sudo apt update && sudo apt install jq"
+      echo_info "  On Fedora: sudo dnf install jq"
   else
-      echo_yellow "  Check download options at: https://jqlang.github.io/jq/download/"
+      echo_info "  Check download options at: https://jqlang.github.io/jq/download/"
   fi
   echo ""
   echo_yellow "Then re-run this installer script:"
-  echo_green "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
+  echo_info "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
   echo_yellow "---------------------------------------------------------------------"
 }
 
@@ -137,37 +140,37 @@ guide_ollama_install() {
 
   if [[ "$OS_TYPE" == "Darwin" ]]; then
     # macOS Instructions
-    echo_yellow "Please download and install Ollama for macOS from:"
+    echo_info "Please download and install Ollama for macOS from:"
     echo ""
-    echo_green "  https://ollama.com/download"
+    echo_info "  https://ollama.com/download"
     echo ""
-    echo_yellow "After installing:"
-    echo_green "  1. Open the Ollama application"
-    echo_green "  2. Pull the required model with:"
-    echo_green "     ollama pull ${DEFAULT_MODEL}"
+    echo_info "After installing:"
+    echo_info "  1. Open the Ollama application"
+    echo_info "  2. Pull the required model with:"
+    echo_info "     ollama pull ${DEFAULT_MODEL}"
   elif [[ "$OS_TYPE" == "Linux" ]]; then
     # Linux Instructions
-    echo_yellow "Please install Ollama for Linux with:"
+    echo_info "Please install Ollama for Linux with:"
     echo ""
-    echo_green "  curl -fsSL https://ollama.com/install.sh | sh"
+    echo_info "  curl -fsSL https://ollama.com/install.sh | sh"
     echo ""
-    echo_yellow "After installing:"
-    echo_green "  1. Start Ollama: ollama serve &"
-    echo_green "  2. Pull the required model:"
-    echo_green "     ollama pull ${DEFAULT_MODEL}"
+    echo_info "After installing:"
+    echo_info "  1. Start Ollama: ollama serve &"
+    echo_info "  2. Pull the required model:"
+    echo_info "     ollama pull ${DEFAULT_MODEL}"
   else
     # Other OS - General Link
-    echo_yellow "Please install Ollama from:"
+    echo_info "Please install Ollama from:"
     echo ""
-    echo_green "  https://ollama.com/download"
+    echo_info "  https://ollama.com/download"
     echo ""
-    echo_yellow "After installing, pull the required model:"
-    echo_green "  ollama pull ${DEFAULT_MODEL}"
+    echo_info "After installing, pull the required model:"
+    echo_info "  ollama pull ${DEFAULT_MODEL}"
   fi
 
   echo ""
-  echo_yellow "Then re-run this installer:"
-  echo_green "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
+  echo_info "Then re-run this installer:"
+  echo_info "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
   echo_yellow "---------------------------------------------------------------------"
 }
 
@@ -175,13 +178,13 @@ guide_model_install() {
   echo_yellow "---------------------------------------------------------------------"
   echo_yellow "ACTION REQUIRED: Default model '${DEFAULT_MODEL}' is not installed"
   
-  echo_yellow "Please install the model with:"
-  echo_green "  ollama pull ${DEFAULT_MODEL}"
-  echo_yellow "Model size: ~1GB (This may take a few minutes)"
+  echo_info "Please install the model with:"
+  echo_info "  ollama pull ${DEFAULT_MODEL}"
+  echo_info "Model size: ~1GB (This may take a few minutes)"
   
   echo ""
-  echo_yellow "Then re-run this installer:"
-  echo_green "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
+  echo_info "Then re-run this installer:"
+  echo_info "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
   echo_yellow "---------------------------------------------------------------------"
   return 1 # Signal missing requirement
 }
@@ -193,9 +196,9 @@ echo ""
 print_logo # Print the new logo
 echo ""
 echo_yellow " <<< Welcome to the installer! >>>"
-echo_yellow "   Let's set up this handy Git utility for you."
+echo_info "   Let's set up this handy Git utility for you."
 echo ""
-echo "Installing ${SCRIPT_NAME} script to ${INSTALL_DIR}..."
+echo_info "Installing ${SCRIPT_NAME} script to ${INSTALL_DIR}..."
 sleep 1 # Short pause
 
 # --- Main Installation Process ---
@@ -206,7 +209,7 @@ mkdir -p "${INSTALL_DIR}" || {
 }
 
 # Download the script using curl (-L follows redirects)
-echo "Downloading script from ${SCRIPT_URL}..."
+echo_info "Downloading script from ${SCRIPT_URL}..."
 if curl -fsSL "${SCRIPT_URL}" -o "${SCRIPT_PATH}"; then
   echo_green "Script downloaded successfully."
 else
@@ -226,7 +229,7 @@ echo ""
 sleep 1
 
 # --- Post-installation Checks ---
-echo "Running post-installation checks..."
+echo_info "Running post-installation checks..."
 echo "---------------------------------------------------"
 ALL_REQS_MET=true
 if ! check_requirements; then
@@ -246,7 +249,7 @@ echo ""
 
 # Check if INSTALL_DIR is in PATH and provide guidance if not
 PATH_CONFIGURED=false
-echo "Checking PATH configuration..."
+echo_info "Checking PATH configuration..."
 case ":$PATH:" in
   *":${INSTALL_DIR}:"*)
     echo_green "'${INSTALL_DIR}' found in your PATH."
@@ -254,11 +257,11 @@ case ":$PATH:" in
     ;;
   *)
     echo_yellow "NOTE: To run '${SCRIPT_NAME}' directly, '${INSTALL_DIR}' needs to be in your PATH."
-    echo "You might need to add the following line to your shell profile (e.g., ~/.bashrc, ~/.zshrc):"
+    echo_info "You might need to add the following line to your shell profile (e.g., ~/.bashrc, ~/.zshrc):"
     echo ""
-    echo_green "  export PATH=\"\$HOME/.local/bin:\$PATH\""
+    echo_info "  export PATH=\"\$HOME/.local/bin:\$PATH\""
     echo ""
-    echo "After adding it, restart your terminal or run 'source ~/.your_shell_profile_file'."
+    echo_info "After adding it, restart your terminal or run 'source ~/.your_shell_profile_file'."
     PATH_CONFIGURED=false
     ;;
 esac
@@ -272,15 +275,15 @@ if [ "$ALL_REQS_MET" = true ] && [ "$PATH_CONFIGURED" = true ]; then
   echo_green "      You're ready to use git-ai-commit!"
   echo "==================================================="
   echo ""
-  echo " To use it, navigate to a Git repository with changes"
-  echo " and simply run:"
+  echo_info " To use it, navigate to a Git repository with changes"
+  echo_info " and simply run:"
   echo ""
   echo_yellow "   g."
   echo ""
-  echo " This will stage all changes, generate an AI commit message,"
-  echo " commit, and push."
+  echo_info " This will stage all changes, generate an AI commit message,"
+  echo_info " commit, and push."
   echo ""
-  echo " To provide your own message, use:"
+  echo_info " To provide your own message, use:"
   echo_yellow "   g. \"Your awesome commit message\""
   echo ""
   echo_green " Happy committing!"
@@ -288,10 +291,10 @@ if [ "$ALL_REQS_MET" = true ] && [ "$PATH_CONFIGURED" = true ]; then
 elif [ "$ALL_REQS_MET" = true ] && [ "$PATH_CONFIGURED" = false ]; then
     echo_yellow "      ALMOST THERE!"
     echo ""
-    echo_yellow "Script installed and requirements met,"
+    echo_info "Script installed and requirements met,"
     echo_yellow "but your PATH needs configuration (see above)."
     echo ""
-    echo_yellow "Once PATH is updated, '${SCRIPT_NAME}' will be ready to use!"
+    echo_info "Once PATH is updated, '${SCRIPT_NAME}' will be ready to use!"
     echo "==================================================="
 else # Requirements not met
   echo_red "      INSTALLATION INCOMPLETE"
