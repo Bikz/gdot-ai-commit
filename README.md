@@ -16,7 +16,7 @@ A lightning-fast utility for Git that stages, commits with AI-generated messages
 ## Prerequisites
 
 1. **Git**: Must be installed and configured.
-2. **Ollama**: Required for AI generation. The installer will check if Ollama is installed and guide you if not. Get it from [ollama.ai](https://ollama.ai).
+2. **Ollama**: Required for AI generation. The installer will check if Ollama is installed and guide you if not. Get it from [Ollama Website](https://ollama.ai).
 3. **An Ollama Model**: The script defaults to `qwen2.5-coder:1.5b` (a small ~1GB model optimized for code). The installer will check if this model is available and prompt you to pull it if it's missing (`ollama pull qwen2.5-coder:1.5b`).
 4. **`curl`**: Needed for the one-line installer (usually pre-installed on macOS/Linux).
 5. **`jq`**: Needed by the `g.` script to function reliably (install via `brew install jq`, `sudo apt install jq`, etc.). The script will error if `jq` is missing.
@@ -37,19 +37,19 @@ curl -s https://raw.githubusercontent.com/Bikz/git-ai-commit/main/install.sh | b
 mkdir -p ~/.local/bin
 ```
 
-2. **Download the script:**
+1. **Download the script:**
 
 ```bash
 curl -s https://raw.githubusercontent.com/Bikz/git-ai-commit/main/g -o ~/.local/bin/g.
 ```
 
-3. **Make it executable:**
+2. **Make it executable:**
 
 ```bash
 chmod +x ~/.local/bin/g.
 ```
 
-1. **Ensure `~/.local/bin` is in your PATH:**
+3. **Ensure `~/.local/bin` is in your PATH:**
     Check with `echo $PATH`. If it's not listed, add it to your shell configuration file (e.g., `~/.bashrc`, `~/.zshrc`, `~/.profile`, `~/.config/fish/config.fish`). Add a line like this:
 
     ```bash
@@ -103,13 +103,13 @@ After you enter `g.` in your terminal, this utility will automatically:
 
 - **"Command not found: g."**: Ensure the installation directory (`~/.local/bin`) is correctly added to your `$PATH` environment variable and you've restarted your terminal or sourced your shell profile.
 - **"Error: 'jq' command not found..."**: Install `jq` using your system's package manager (e.g., `brew install jq` on macOS, `sudo apt install jq` on Debian/Ubuntu). The script requires `jq` for reliable operation.
-- **"Error: 'ollama' command not found"**: Install Ollama from [ollama.ai](https://ollama.ai).
+- **"Error: 'ollama' command not found"**: Install Ollama from [Ollama Website](https://ollama.ai).
 - **"Error: Failed to communicate with Ollama API..."**: Make sure the Ollama application or service is running (`ollama ps` or check system services). Check if the `OLLAMA_ENDPOINT` in the script is correct.
 - **"Error: Ollama API returned an error: model '...' not found"**: Ensure the model specified by the `MODEL` variable in the script (or `GAC_MODEL` env var) has been pulled (`ollama pull <model_name>`) and is listed in `ollama list`.
 
 ## Other Issues
 
-If you encounter any bugs or still facing other issues, please open an issue on https://github.com/Bikz/git-ai-commit/issues
+If you encounter any bugs or still facing other issues, please open an issue on [GitHub Issues](https://github.com/Bikz/git-ai-commit/issues)
 
 ## Uninstalling
 
@@ -121,7 +121,7 @@ If you encounter any bugs or still facing other issues, please open an issue on 
 rm ~/.local/bin/g.
 ```
 
-2. (Optional) If `~/.local/bin` was only used for this script, you can remove the `export PATH="$HOME/.local/bin:$PATH"` line from your shell configuration file (`~/.bashrc`, `~/.zshrc`, etc.) and restart your terminal.
+1. (Optional) If `~/.local/bin` was only used for this script, you can remove the `export PATH="$HOME/.local/bin:$PATH"` line from your shell configuration file (`~/.bashrc`, `~/.zshrc`, etc.) and restart your terminal.
 
 ### Uninstalling Ollama
 
@@ -166,4 +166,4 @@ sudo systemctl daemon-reload 2>/dev/null
 
 ## Contributing
 
-Contributions welcome! Please feel free to submit a Pull Request to https://github.com/Bikz/git-ai-commit.
+Contributions welcome! Please feel free to submit a Pull Request to [GitHub Repository](https://github.com/Bikz/git-ai-commit).

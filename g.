@@ -9,7 +9,6 @@
 MODEL=${GAC_MODEL:-"qwen2.5-coder:1.5b"} # Default model set to qwen2.5-coder:1.5b (small & fast)
 OLLAMA_ENDPOINT=${GAC_OLLAMA_ENDPOINT:-"http://localhost:11434/api/chat"}
 TEMP=${GAC_TEMP:-0.2} # Lower temp for more predictable formatting
-DIVIDER="-----------------------------------------"
 COMMIT_DIVIDER="——————————————————" # Divider for commit message
 
 # --- Update Configuration ---
@@ -330,8 +329,8 @@ main_commit_logic() {
     DIFF_CONTENT=$(git diff --staged)
     if [ -z "$DIFF_CONTENT" ]; then 
       # This should never happen now as we check earlier, but keeping as a safeguard
-      echo_success "✔ No diff content found for staged files."; 
-      exit 0; 
+      echo_success "✔ No diff content found for staged files."
+      exit 0
     fi
 
     # --- AI Generation ---

@@ -223,11 +223,10 @@ sleep 1 # Short pause
 
 # --- Main Installation Process ---
 # Ensure target directory exists
-mkdir -p "${INSTALL_DIR}"
-if [ $? -ne 0 ]; then
+mkdir -p "${INSTALL_DIR}" || {
   echo_red "Error: Failed to create installation directory ${INSTALL_DIR}"
   exit 1
-fi
+}
 
 # Download the script using curl (-L follows redirects)
 echo "Downloading script from ${SCRIPT_URL}..."
@@ -240,8 +239,7 @@ else
 fi
 
 # Make the script executable
-chmod +x "${SCRIPT_PATH}"
-if [ $? -ne 0 ]; then
+if ! chmod +x "${SCRIPT_PATH}"; then
     echo_red "Error: Failed to make script executable at ${SCRIPT_PATH}"
     rm -f "${SCRIPT_PATH}" > /dev/null 2>&1 # Clean up
     exit 1
