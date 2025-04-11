@@ -295,7 +295,6 @@ echo "==================================================="
 if [ "$ALL_REQS_MET" = true ] && [ "$PATH_CONFIGURED" = true ]; then
   echo_green "      SUCCESS! Installation complete!"
   echo_green "      You're ready to use git-ai-commit!"
-  echo ""
   echo "==================================================="
   echo ""
   echo " To use it, navigate to a Git repository with changes"
