@@ -402,12 +402,10 @@ RESPOND ONLY with the single-line commit message and nothing else." \
 
     # Enhanced post-processing to strip any markdown formatting or unwanted characters
     COMMIT_MESSAGE=$(echo "$GENERATED_CONTENT" | 
-      sed -E 's/^```[a-z]*$//g' |  # Remove opening code block markers
-      sed -E 's/^```$//g' |         # Remove closing code block markers
-      sed -E 's/^`//g' |            # Remove leading backticks
-      sed -E 's/`$//g' |            # Remove trailing backticks
-      sed -E 's/^\s*"(.*)"\s*$/\1/g' | # Remove surrounding quotes
-      sed -E 's/^\s*//;s/\s*$//g'   # Trim whitespace
+      sed -E 's/```[a-z]*//g' |     # Remove opening code block markers with language
+      sed -E 's/```//g' |           # Remove code block markers
+      sed -E 's/`//g' |             # Remove backticks
+      sed 's/^[[:space:]]*//;s/[[:space:]]*$//' # Trim whitespace
     )
     if [ -z "$COMMIT_MESSAGE" ]; then 
       echo_error "Ollama generated empty message."
