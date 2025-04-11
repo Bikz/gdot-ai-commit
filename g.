@@ -397,7 +397,7 @@ RESPOND ONLY with the single-line commit message and nothing else." \
       echo_indented "$PUSH_OUTPUT" # Show Git's error output
       # Exit 0 here, commit succeeded. User must resolve push.
     else
-      echo_success "◇ ✔ Successfully pushed to $REMOTE_NAME ($CURRENT_BRANCH)"
+      echo_success "◇ ✔ Push successful: $REMOTE_NAME → $CURRENT_BRANCH"
     fi
   fi
 
