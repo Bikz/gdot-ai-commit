@@ -16,7 +16,7 @@ A lightning-fast utility for Git that stages, commits with AI-generated messages
 
 1. **Git**: Must be installed and configured.
 2. **Ollama**: Required for AI generation. The installer will check if Ollama is installed and guide you if not. Get it from [ollama.ai](https://ollama.ai).
-3. **An Ollama Model**: The script defaults to `llama3.2`. The installer will check if this model is available and prompt you to pull it if it's missing (`ollama pull llama3.2`).
+3. **An Ollama Model**: The script defaults to `qwen2.5-coder:1.5b` (a small ~1GB model optimized for code). The installer will check if this model is available and prompt you to pull it if it's missing (`ollama pull qwen2.5-coder:1.5b`).
 4. **`curl`**: Needed for the one-line installer (usually pre-installed on macOS/Linux).
 5. **`jq`**: Needed by the `g.` script to function reliably (install via `brew install jq`, `sudo apt install jq`, etc.). The script will error if `jq` is missing.
 
@@ -60,7 +60,7 @@ chmod +x ~/.local/bin/g.
 ## Usage
 
 ```bash
-# Auto-commit with AI-generated message (uses default model 'llama3.2')
+# Auto-commit with AI-generated message (uses default model 'qwen2.5-coder:1.5b')
 g.
 
 # Use your own commit message instead of AI generation
@@ -84,9 +84,9 @@ g. "fix: resolved authentication issue in login form"
 
 You can override defaults using environment variables before running the script (e.g., `GAC_MODEL=mistral g.`) or by editing the `g.` script file (`~/.local/bin/g.`) directly:
 
-- **`MODEL`**: The Ollama model to use (default: "llama3.2"). Change this if you prefer another model (e.g., "mistral", "codegemma"). Make sure you pull it first (`ollama pull <model_name>`).
+- **`MODEL`**: The Ollama model to use (default: "qwen2.5-coder:1.5b"). Change this if you prefer another model (e.g., "llama3", "mistral", "codegemma"). Make sure you pull it first (`ollama pull <model_name>`).
 - **`OLLAMA_ENDPOINT`**: The URL for the Ollama API (default: "http://localhost:11434/api/chat").
-- **`TEMP`**: Temperature setting for generation (default: 0.7).
+- **`TEMP`**: Temperature setting for generation (default: 0.2).
 
 ## How it works
 
