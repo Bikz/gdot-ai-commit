@@ -48,6 +48,8 @@ print_logo() {
 check_requirements() {
   local REQUIREMENTS_MET=true
   local OLLAMA_FOUND=false
+  local OS_TYPE
+  OS_TYPE=$(uname -s)
 
   # Check for Git
   if ! command -v git &> /dev/null; then
@@ -71,7 +73,7 @@ check_requirements() {
 
   # Only check for model if ollama command exists
   if [ "$OLLAMA_FOUND" = true ]; then
-    echo "Checking for default model '${DEFAULT_MODEL}'..."
+    echo_info "Checking for default model '${DEFAULT_MODEL}'..."
     if ! ollama list | grep -q "^${DEFAULT_MODEL}"; then
       if ! guide_model_install; then
         REQUIREMENTS_MET=false
@@ -92,6 +94,7 @@ guide_git_install() {
   echo_yellow "---------------------------------------------------------------------"
   echo_yellow "ACTION REQUIRED: Git is not installed or not in PATH"
   echo_yellow "Git is required to use ${SCRIPT_NAME}."
+  local OS_TYPE
   OS_TYPE=$(uname -s)
   echo_yellow "Please install Git for your system:"
   echo ""
@@ -108,13 +111,14 @@ guide_git_install() {
   echo ""
   echo_yellow "Then re-run this installer script:"
   echo_info "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
-  echo_yellow "---------------------------------------------------------------------"
+  return 1
 }
 
 guide_jq_install() {
   echo_yellow "---------------------------------------------------------------------"
   echo_yellow "ACTION REQUIRED: jq is not installed or not in PATH"
   echo_yellow "'jq' is required by ${SCRIPT_NAME} for processing AI responses."
+  local OS_TYPE
   OS_TYPE=$(uname -s)
   echo_yellow "Please install jq for your system:"
   echo ""
@@ -129,13 +133,14 @@ guide_jq_install() {
   echo ""
   echo_yellow "Then re-run this installer script:"
   echo_info "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
-  echo_yellow "---------------------------------------------------------------------"
+  return 1
 }
 
 
 guide_ollama_install() {
    echo_yellow "---------------------------------------------------------------------"
   echo_yellow "ACTION REQUIRED: Ollama is not installed or not in PATH"
+  local OS_TYPE
   OS_TYPE=$(uname -s)
 
   if [[ "$OS_TYPE" == "Darwin" ]]; then
@@ -171,7 +176,7 @@ guide_ollama_install() {
   echo ""
   echo_info "Then re-run this installer:"
   echo_info "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
-  echo_yellow "---------------------------------------------------------------------"
+  return 1 # Signal missing requirement
 }
 
 guide_model_install() {
@@ -185,67 +190,23 @@ guide_model_install() {
   echo ""
   echo_info "Then re-run this installer:"
   echo_info "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
-  echo_yellow "---------------------------------------------------------------------"
   return 1 # Signal missing requirement
 }
 # --- End Helper Functions ---
 
 # --- Installation Start ---
-# clear # Optional: uncomment to clear screen first
 echo ""
 print_logo # Print the new logo
 echo ""
 echo_yellow " <<< Welcome to the installer! >>>"
 echo_info "   Let's set up this handy Git utility for you."
 echo ""
-echo_info "Installing ${SCRIPT_NAME} script to ${INSTALL_DIR}..."
-sleep 1 # Short pause
 
 # --- Main Installation Process ---
-# Ensure target directory exists
 mkdir -p "${INSTALL_DIR}" || {
   echo_red "Error: Failed to create installation directory ${INSTALL_DIR}"
   exit 1
 }
-
-# Download the script using curl (-L follows redirects)
-echo_info "Downloading script from ${SCRIPT_URL}..."
-if curl -fsSL "${SCRIPT_URL}" -o "${SCRIPT_PATH}"; then
-  echo_green "Script downloaded successfully."
-else
-  echo_red "Error: Failed to download script from ${SCRIPT_URL}"
-  echo_red "Please check the URL, repository permissions, and your internet connection."
-  exit 1
-fi
-
-# Make the script executable
-if ! chmod +x "${SCRIPT_PATH}"; then
-    echo_red "Error: Failed to make script executable at ${SCRIPT_PATH}"
-    rm -f "${SCRIPT_PATH}" > /dev/null 2>&1 # Clean up
-    exit 1
-fi
-echo_green "'${SCRIPT_NAME}' is now executable."
-echo ""
-sleep 1
-
-# --- Post-installation Checks ---
-echo_info "Running post-installation checks..."
-echo "---------------------------------------------------"
-ALL_REQS_MET=true
-if ! check_requirements; then
-  ALL_REQS_MET=false
-fi
-
-# Add spacing after checks
-echo "---------------------------------------------------"
-echo ""
-
-if [ "$ALL_REQS_MET" = true ]; then
-    echo_green "Requirement checks passed!"
-else
-    echo_yellow "Requirement checks found missing items (see details above)."
-fi
-echo ""
 
 # Check if INSTALL_DIR is in PATH and provide guidance if not
 PATH_CONFIGURED=false
@@ -265,15 +226,43 @@ case ":$PATH:" in
     PATH_CONFIGURED=false
     ;;
 esac
+
+# Download the script using curl (-L follows redirects)
+echo_info "Downloading script from ${SCRIPT_URL}..."
+if curl -fsSL "${SCRIPT_URL}" -o "${SCRIPT_PATH}"; then
+  echo_green "Script downloaded successfully."
+else
+  echo_red "Error: Failed to download script from ${SCRIPT_URL}"
+  echo_red "Please check the URL, repository permissions, and your internet connection."
+  exit 1
+fi
+
+# Make the script executable
+if ! chmod +x "${SCRIPT_PATH}"; then
+    echo_red "Error: Failed to make script executable at ${SCRIPT_PATH}"
+    rm -f "${SCRIPT_PATH}" > /dev/null 2>&1 # Clean up
+    exit 1
+fi
+echo_green "'${SCRIPT_NAME}' is now executable."
 echo ""
-sleep 1
+
+# --- Post-installation Checks ---
+echo_info "Running post-installation checks..."
+ALL_REQS_MET=true
+# Removed the opening divider here since guide functions add their own
+if ! check_requirements; then
+  ALL_REQS_MET=false
+else
+  echo_green "All requirements met! You're good to go."
+fi
+echo_yellow "---------------------------------------------------------------------"
 
 # --- Final Message ---
-echo "==================================================="
+echo_yellow "====================================================="
 if [ "$ALL_REQS_MET" = true ] && [ "$PATH_CONFIGURED" = true ]; then
   echo_green "      SUCCESS! Installation complete!"
   echo_green "      You're ready to use git-ai-commit!"
-  echo "==================================================="
+  echo_yellow "====================================================="
   echo ""
   echo_info " To use it, navigate to a Git repository with changes"
   echo_info " and simply run:"
@@ -295,10 +284,10 @@ elif [ "$ALL_REQS_MET" = true ] && [ "$PATH_CONFIGURED" = false ]; then
     echo_yellow "but your PATH needs configuration (see above)."
     echo ""
     echo_info "Once PATH is updated, '${SCRIPT_NAME}' will be ready to use!"
-    echo "==================================================="
+    echo_yellow "====================================================="
 else # Requirements not met
   echo_red "      INSTALLATION INCOMPLETE"
-  echo "==================================================="
+  echo_yellow "====================================================="
   # The detailed instructions have already been shown above,
   # so we don't need to repeat them here
 fi
