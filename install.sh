@@ -91,7 +91,7 @@ check_requirements() {
 }
 
 guide_git_install() {
-  echo_info "====================================================="
+  echo_yellow "====================================================="
   echo_yellow "ACTION REQUIRED: Git is not installed or not in PATH"
   echo_yellow "Git is required to use ${SCRIPT_NAME}."
   local OS_TYPE
@@ -111,12 +111,12 @@ guide_git_install() {
   echo ""
   echo_yellow "Then re-run this installer script:"
   echo_info "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
-  echo_info "====================================================="
+  echo_yellow "====================================================="
   return 1
 }
 
 guide_jq_install() {
-  echo_info "====================================================="
+  echo_yellow "====================================================="
   echo_yellow "ACTION REQUIRED: jq is not installed or not in PATH"
   echo_yellow "'jq' is required by ${SCRIPT_NAME} for processing AI responses."
   local OS_TYPE
@@ -134,13 +134,13 @@ guide_jq_install() {
   echo ""
   echo_yellow "Then re-run this installer script:"
   echo_info "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
-  echo_info "====================================================="
+  echo_yellow "====================================================="
   return 1
 }
 
 
 guide_ollama_install() {
-   echo_info "====================================================="
+   echo_yellow "====================================================="
   echo_yellow "ACTION REQUIRED: Ollama is not installed or not in PATH"
   local OS_TYPE
   OS_TYPE=$(uname -s)
@@ -178,12 +178,12 @@ guide_ollama_install() {
   echo ""
   echo_info "Then re-run this installer:"
   echo_info "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
-  echo_info "====================================================="
+  echo_yellow "====================================================="
   return 1 # Signal missing requirement
 }
 
 guide_model_install() {
-  echo_info "====================================================="
+  echo_yellow "====================================================="
   echo_yellow "ACTION REQUIRED: Default model '${DEFAULT_MODEL}' is not installed"
   
   echo_info "Please install the model with:"
@@ -193,8 +193,76 @@ guide_model_install() {
   echo ""
   echo_info "Then re-run this installer:"
   echo_info "  curl -s https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/main/install.sh | bash"
-  echo_info "====================================================="
+  echo_yellow "====================================================="
   return 1 # Signal missing requirement
+}
+
+# Function to add ~/.local/bin to PATH in the appropriate shell profile
+add_to_path() {
+  # Determine which shell profile to modify
+  local SHELL_NAME
+  SHELL_NAME=$(basename "$SHELL")
+  local PROFILE_FILE=""
+  local PROFILE_NAME=""
+  
+  case "$SHELL_NAME" in
+    bash)
+      if [[ -f "$HOME/.bash_profile" ]]; then
+        PROFILE_FILE="$HOME/.bash_profile"
+        PROFILE_NAME=".bash_profile"
+      else
+        PROFILE_FILE="$HOME/.bashrc"
+        PROFILE_NAME=".bashrc"
+      fi
+      ;;
+    zsh)
+      PROFILE_FILE="$HOME/.zshrc"
+      PROFILE_NAME=".zshrc"
+      ;;
+    fish)
+      PROFILE_FILE="$HOME/.config/fish/config.fish"
+      PROFILE_NAME="config.fish"
+      ;;
+    *)
+      echo_yellow "Unsupported shell: $SHELL_NAME"
+      echo_info "Please manually add ~/.local/bin to your PATH."
+      return 1
+      ;;
+  esac
+  
+  # Check if profile file exists
+  if [[ ! -f "$PROFILE_FILE" && "$SHELL_NAME" != "fish" ]]; then
+    # Create the file if it doesn't exist
+    touch "$PROFILE_FILE"
+  elif [[ ! -f "$PROFILE_FILE" && "$SHELL_NAME" == "fish" ]]; then
+    # For fish shell, create the directory structure if needed
+    mkdir -p "$HOME/.config/fish"
+    touch "$PROFILE_FILE"
+  fi
+  
+  # Check if PATH entry already exists
+  if grep -q "PATH=.*\.local/bin" "$PROFILE_FILE" || grep -q "fish_add_path.*\.local/bin" "$PROFILE_FILE"; then
+    echo_yellow "PATH entry already exists in $PROFILE_NAME."
+    return 0
+  fi
+  
+  # Add PATH entry based on shell type
+  if [[ "$SHELL_NAME" == "fish" ]]; then
+    echo 'fish_add_path "$HOME/.local/bin"' >> "$PROFILE_FILE"
+  else
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$PROFILE_FILE"
+  fi
+  
+  echo_green "Added ~/.local/bin to your PATH in $PROFILE_NAME."
+  echo_info "To apply changes, restart your terminal or run:"
+  
+  if [[ "$SHELL_NAME" == "fish" ]]; then
+    echo_info "  source $PROFILE_FILE"
+  else
+    echo_info "  source $PROFILE_FILE"
+  fi
+  
+  return 0
 }
 # --- End Helper Functions ---
 
@@ -217,17 +285,37 @@ PATH_CONFIGURED=false
 echo_info "Checking PATH configuration..."
 case ":$PATH:" in
   *":${INSTALL_DIR}:"*)
+    # If ~/.local/bin is already in PATH, we don't need to do anything
     echo_green "'${INSTALL_DIR}' found in your PATH."
     PATH_CONFIGURED=true
     ;;
   *)
+    # Only prompt to add to PATH if it's not already there
     echo_yellow "NOTE: To run '${SCRIPT_NAME}' directly, '${INSTALL_DIR}' needs to be in your PATH."
-    echo_info "You might need to add the following line to your shell profile (e.g., ~/.bashrc, ~/.zshrc):"
-    echo ""
-    echo_info "  export PATH=\"\$HOME/.local/bin:\$PATH\""
-    echo ""
-    echo_info "After adding it, restart your terminal or run 'source ~/.your_shell_profile_file'."
-    PATH_CONFIGURED=false
+    # Add a comment to clarify that the PATH prompt only appears when needed
+    echo_info "You're seeing this prompt because '${INSTALL_DIR}' is not in your PATH."
+    echo_info "Would you like to automatically add it to your PATH? (y/N): "
+    read -r ADD_TO_PATH
+    if [[ "$ADD_TO_PATH" =~ ^[Yy]$ ]]; then
+      if add_to_path; then
+        PATH_CONFIGURED=true
+      else
+        echo_yellow "Failed to add ~/.local/bin to PATH."
+        echo_info "You might need to add the following line to your shell profile (e.g., ~/.bashrc, ~/.zshrc):"
+        echo ""
+        echo_info "  export PATH=\"\$HOME/.local/bin:\$PATH\""
+        echo ""
+        echo_info "After adding it, restart your terminal or run 'source ~/.your_shell_profile_file'."
+        PATH_CONFIGURED=false
+      fi
+    else
+      echo_info "You might need to add the following line to your shell profile (e.g., ~/.bashrc, ~/.zshrc):"
+      echo ""
+      echo_info "  export PATH=\"\$HOME/.local/bin:\$PATH\""
+      echo ""
+      echo_info "After adding it, restart your terminal or run 'source ~/.your_shell_profile_file'."
+      PATH_CONFIGURED=false
+    fi
     ;;
 esac
 
@@ -280,6 +368,9 @@ if [ "$ALL_REQS_MET" = true ] && [ "$PATH_CONFIGURED" = true ]; then
   echo_info " To provide your own message, use:"
   echo_yellow "   g. \"Your awesome commit message\""
   echo ""
+  echo_yellow " NOTE: You may need to restart your terminal or run 'hash -r'"
+  echo_yellow " to refresh your command hash table before using g."
+  echo ""
   echo_green " Happy committing!"
 
 elif [ "$ALL_REQS_MET" = true ] && [ "$PATH_CONFIGURED" = false ]; then
@@ -292,10 +383,10 @@ elif [ "$ALL_REQS_MET" = true ] && [ "$PATH_CONFIGURED" = false ]; then
     echo_info "Once PATH is updated, '${SCRIPT_NAME}' will be ready to use!"
     echo_info "====================================================="
 else # Requirements not met
-  # Only need one divider at the top and one at the bottom for the final message
-  echo_info "====================================================="
+  # Use the exact same style and length as in the image - dashes instead of equal signs
+  echo_info "-----------------------------------------------------"
   echo_red "      INSTALLATION INCOMPLETE"
-  echo_info "====================================================="
+  echo_info "-----------------------------------------------------"
   # The detailed instructions have already been shown above,
   # so we don't need to repeat them here
 fi
