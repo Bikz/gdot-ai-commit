@@ -37,14 +37,16 @@ echo_indented() { # Print indented text
 
 # --- ASCII Art Logo Function ---
 show_logo() {
-  echo "  ___ _ _                _                           _ _   "
-  echo " / _ (_) |_       __ _  (_)       ___ ___  _ __ ___ (_) |_ "
-  echo "| | | | | __|__  / _\` | | |_____ / __/ _ \| '_ \` _ \| | __|"
-  echo "| |_| | | ||____| (_| | | |_____| (_| (_) | | | | | | | |_ "
-  echo " \__\_\_|\__|     \__,_| |_|      \___\___/|_| |_| |_|_|\__|"
-  echo ""
-  echo "https://github.com/${GITHUB_USER}/${REPO_NAME}"
-  echo ""
+  local green="\033[0;32m" # Green for g.
+  local white="\033[0m"    # White/Reset
+
+  echo -e "${green} __ _      ${white}"
+  echo -e "${green} / _\` |     ${white}"
+  echo -e "${green}| (_| |    ${white}  git-ai-commit"  
+  echo -e "${green} \\__, | (_)${white}  ---------------"
+  echo -e "${green}  __/ |    ${white}  https://github.com/${GITHUB_USER}/${REPO_NAME}"
+  echo -e "${green} |___/     ${white}"
+  echo "" # Add a blank line after logo
 }
 # --- End ASCII Art Logo Function ---
 
