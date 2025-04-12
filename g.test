@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# --- gdot-ai-commit (g.) ---
+# --- gDot-ai-commit (g.) ---
 # Stages, commits with AI message (via Ollama) or provided message, and pushes.
 # Includes self-update mechanism.
-# Repository: https://github.com/Bikz/gdot-ai-commit
+# Repository: https://github.com/Bikz/gDot-ai-commit
 
 # --- Configuration ---
 MODEL=${GAC_MODEL:-"llama3.2"} # Default model set to llama3.2
@@ -15,12 +15,12 @@ COMMIT_DIVIDER="——————————————————" # Divide
 # --- Update Configuration ---
 # !!IMPORTANT!!: Update GITHUB_USER and REPO_NAME if yours are different
 GITHUB_USER="Bikz"
-REPO_NAME="gdot-ai-commit"
+REPO_NAME="gDot-ai-commit"
 SCRIPT_FILENAME="g."
 BRANCH_NAME="main" # Or whichever branch hosts the release version
 REMOTE_SCRIPT_URL="https://raw.githubusercontent.com/${GITHUB_USER}/${REPO_NAME}/${BRANCH_NAME}/${SCRIPT_FILENAME}"
 CHECK_INTERVAL_SECONDS=$((60*60*24)) # Check once per day (86400 seconds)
-CACHE_DIR="$HOME/.cache/gdot-ai-commit"
+CACHE_DIR="$HOME/.cache/gDot-ai-commit"
 LAST_CHECK_FILE="${CACHE_DIR}/last_check_ts"
 INSTALL_PATH="$0" # Assumes script is run from PATH or directly
 # --- End Update Configuration ---
@@ -42,7 +42,7 @@ show_logo() {
 
   echo -e "${green} __ _      ${white}"
   echo -e "${green} / _\` |     ${white}"
-  echo -e "${green}| (_| |    ${white}  gdot-ai-commit"  
+  echo -e "${green}| (_| |    ${white}  gDot-ai-commit"  
   echo -e "${green} \\__, | (_)${white}  ---------------"
   echo -e "${green}  __/ |    ${white}  https://github.com/${GITHUB_USER}/${REPO_NAME}"
   echo -e "${green} |___/     ${white}"
@@ -129,7 +129,7 @@ check_for_update() {
   if [[ "$current_hash" != "$remote_hash" ]]; then
     echo ""
     show_logo
-    echo_info "A new version of gdot-ai-commit ('g.') is available!"
+    echo_info "A new version of gDot-ai-commit ('g.') is available!"
     echo_info "Run 'g. --update' to install it."
     echo ""
   fi
