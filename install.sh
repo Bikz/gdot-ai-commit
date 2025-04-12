@@ -32,13 +32,14 @@ echo_info() {
 print_logo() {
     local color1="\033[0;32m" # Green for g.
     local color2="\033[0;33m" # Yellow for text
+    local color3="\033[0;37m" # White for text
     local nc="\033[0m"       # No Color
 
     echo -e "${color1} __ _      ${nc}"
     echo -e "${color1} / _\` |     ${nc}"
-    echo -e "${color1}| (_| |    ${nc}  ${color2}gdot-ai-commit${nc}"  
-    echo -e "${color1} \\__, | (_)${nc}  ${color2}---------------${nc}"
-    echo -e "${color1}  __/ |    ${nc}  ${color2}Repo: https://github.com/${GITHUB_USER}/${REPO_NAME}${nc}"
+    echo -e "${color1}| (_| |    ${nc}  ${color3}gdot-ai-commit${nc}"  
+    echo -e "${color1} \\__, | (_)${nc}  ${color3}---------------${nc}"
+    echo -e "${color1}  __/ |    ${nc}  ${color3}Repo: https://github.com/${GITHUB_USER}/${REPO_NAME}${nc}"
     echo -e "${color1} |___/     ${nc}"
     echo "" # Add a blank line after logo
 }
