@@ -31,7 +31,7 @@ echo_info() {
 # Prints the logo with specific colors using the new 'g.' art
 print_logo() {
     local color1="\033[0;32m" # Green for g.
-    local color2="\033[0;33m" # Yellow for text
+#   local color2="\033[0;33m" # Yellow for text
     local color3="\033[0;37m" # White for text
     local nc="\033[0m"       # No Color
 
