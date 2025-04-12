@@ -1,4 +1,4 @@
-# git-ai-commit (g.)
+# gdot-ai-commit (g.)
 
 A lightning-fast utility for Git that stages, commits with AI-generated messages, and pushes—all with one simple command: `g.`
 
@@ -26,7 +26,7 @@ A lightning-fast utility for Git that stages, commits with AI-generated messages
 ### Option 1: One-line installer
 
 ```bash
-curl -s https://raw.githubusercontent.com/Bikz/git-ai-commit/main/install.sh | bash
+curl -s https://raw.githubusercontent.com/Bikz/gdot-ai-commit/main/install.sh | bash
 ```
 
 ### Option 2: Manual installation
@@ -40,7 +40,7 @@ mkdir -p ~/.local/bin
 1. **Download the script:**
 
     ```bash
-    curl -s https://raw.githubusercontent.com/Bikz/git-ai-commit/main/g -o ~/.local/bin/g.
+    curl -s https://raw.githubusercontent.com/Bikz/gdot-ai-commit/main/g -o ~/.local/bin/g.
     ```
 
 2. **Make it executable:**
@@ -71,7 +71,7 @@ g. "fix: resolved authentication issue in login form"
 
 ## Updating
 
-`git-ai-commit` includes a built-in mechanism to check for updates daily.
+`gdot-ai-commit` includes a built-in mechanism to check for updates daily.
 
 - **Automatic Check:** Once a day, the script will automatically check GitHub for a newer version. If one is found, it will print a notification suggesting you update.
 - **Manual Update:** To manually trigger an update at any time, run:
@@ -110,7 +110,7 @@ After you enter `g.` in your terminal, this utility will automatically:
 
 ## Other Issues
 
-If you encounter any bugs or still facing other issues, please open an issue on [GitHub Issues](https://github.com/Bikz/git-ai-commit/issues)
+If you encounter any bugs or still facing other issues, please open an issue on [GitHub Issues](https://github.com/Bikz/gdot-ai-commit/issues)
 
 ## Uninstalling
 
@@ -175,4 +175,4 @@ sudo systemctl daemon-reload 2>/dev/null
 
 ## Contributing
 
-Contributions welcome! Please feel free to submit a Pull Request to [GitHub Repository](https://github.com/Bikz/git-ai-commit).
+Contributions welcome! Please feel free to submit a Pull Request to [GitHub Repository](https://github.com/Bikz/gdot-ai-commit).

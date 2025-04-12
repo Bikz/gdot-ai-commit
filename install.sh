@@ -1,9 +1,9 @@
 #!/bin/bash
-# Simple installer for g. (git-ai-commit)
+# Simple installer for g. (gdot-ai-commit)
 
 # --- Configuration ---
 GITHUB_USER="Bikz"
-REPO_NAME="git-ai-commit"
+REPO_NAME="gdot-ai-commit"
 SCRIPT_NAME="g."
 DEFAULT_MODEL="qwen2.5-coder:1.5b" # Default model to check for
 BRANCH="main"
@@ -36,7 +36,7 @@ print_logo() {
 
     echo -e "${color1} __ _      ${nc}"
     echo -e "${color1} / _\` |     ${nc}"
-    echo -e "${color1}| (_| |    ${nc}  ${color2}git-ai-commit${nc}"  
+    echo -e "${color1}| (_| |    ${nc}  ${color2}gdot-ai-commit${nc}"  
     echo -e "${color1} \\__, | (_)${nc}  ${color2}---------------${nc}"
     echo -e "${color1}  __/ |    ${nc}  ${color2}Repo: https://github.com/${GITHUB_USER}/${REPO_NAME}${nc}"
     echo -e "${color1} |___/     ${nc}"
@@ -353,7 +353,7 @@ fi
 if [ "$ALL_REQS_MET" = true ] && [ "$PATH_CONFIGURED" = true ]; then
   echo_info "====================================================="
   echo_green "      SUCCESS! Installation complete!"
-  echo_green "      You're ready to use git-ai-commit!"
+  echo_green "      You're ready to use gdot-ai-commit!"
   echo_info "====================================================="
   echo ""
   echo_info " To use it, navigate to a Git repository with changes"
