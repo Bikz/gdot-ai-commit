@@ -57,6 +57,9 @@ function download(url, dest) {
 
 async function install() {
   const target = resolveTarget();
+  if (target === 'aarch64-unknown-linux-gnu') {
+    fail('linux arm64 builds are not yet available');
+  }
   const asset = `${BIN_NAME}-${target}.tar.gz`;
   const url = `https://github.com/${REPO}/releases/latest/download/${asset}`;
 

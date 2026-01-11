@@ -20,6 +20,7 @@ brew install git-ai-commit
 ```
 
 The formula source lives at `homebrew/git-ai-commit.rb` and should be published in a tap repo (for example `Bikz/homebrew-tap`).
+Linux arm64 bottles are not available yet.
 
 ### npm
 
@@ -28,6 +29,7 @@ npm install -g git-ai-commit
 ```
 
 The npm package installs `git-ai-commit` and `g` (dot alias is not available via npm).
+Linux arm64 binaries are not available yet.
 
 ### curl installer
 
