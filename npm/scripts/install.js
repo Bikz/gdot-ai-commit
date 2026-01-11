@@ -43,7 +43,7 @@ function download(url, dest) {
     const file = fs.createWriteStream(dest);
     https.get(url, (response) => {
       if (response.statusCode !== 200) {
-        reject(new Error(`download failed with status ${response.statusCode}`));
+        reject(new Error(`status:${response.statusCode}`));
         return;
       }
 
@@ -73,7 +73,16 @@ async function install() {
   }
 
   console.log(`Downloading ${url}`);
-  await download(url, archivePath);
+  try {
+    await download(url, archivePath);
+  } catch (err) {
+    if (String(err.message || err).includes('status:404')) {
+      fail(
+        `no prebuilt binary for ${target}. Build from source: cargo build --release`
+      );
+    }
+    throw err;
+  }
 
   try {
     execFileSync('tar', ['-xzf', archivePath, '-C', nativeDir], { stdio: 'inherit' });
