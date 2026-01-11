@@ -1,6 +1,6 @@
 [package]
 name = "git-ai-commit"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 license = "MIT"
 description = "One-command AI commit messages with GPT-5 and Ollama"
@@ -24,6 +24,5 @@ tokio = { version = "1.39", features = ["rt-multi-thread", "macros", "time"] }
 toml = "0.8"
 
 [profile.release]
-strip = true
 lto = true
 codegen-units = 1
