@@ -1,178 +1,170 @@
-# gDot-ai-commit (g.)
+# git-ai-commit (g, g.)
 
-A lightning-fast utility for Git that stages, commits with AI-generated messages, and pushes—all with one simple command: `g.`
+One-command AI commit messages with GPT-5 and Ollama. Fast defaults, conventional commits, and safe fallbacks.
 
-## Features
+## Highlights
 
-- **Ultra-fast workflow**: Stage, commit, and push with a single command.
-- **AI-powered commit messages**: Uses Ollama with the lightweight qwen2.5-coder:1.5b model (~1GB).
-- **Privacy-focused**: All processing happens on your machine.
-- **Minimal keystrokes**: Just type `g.` and you're done.
-- **Works with your flow**: Optionally provide your own commit message.
-- **Clean, informative output**: Provides clear feedback at each step of the process.
-- **Automatic Update Notifications**: Checks daily for new versions and notifies you.
-- **Simple Manual Update**: Use `g. --update` to get the latest version anytime.
+- **One command**: `g` or `g.` stages (configurable), generates, commits, and optionally pushes.
+- **GPT-5 ready**: Uses `max_completion_tokens` with the OpenAI Responses API when needed.
+- **Ollama or OpenAI**: Choose local-first or cloud.
+- **Large diff safe**: Map-reduce summaries prevent token blowups.
+- **Config + ignores**: Global + repo config, plus ignore files to control prompt size.
 
-## Prerequisites
-
-1. **Git**: Must be installed and configured.
-2. **Ollama**: Required for AI generation. The installer will check if Ollama is installed and guide you if not. Get it from [Ollama Website](https://ollama.ai).
-3. **An Ollama Model**: The script defaults to `qwen2.5-coder:1.5b` (a small ~1GB model optimized for code). The installer will check if this model is available and prompt you to pull it if it's missing (`ollama pull qwen2.5-coder:1.5b`).
-4. **`curl`**: Needed for the one-line installer (usually pre-installed on macOS/Linux).
-5. **`jq`**: Needed by the `g.` script to function reliably (install via `brew install jq`, `sudo apt install jq`, etc.). The script will error if `jq` is missing.
-
-## Installation
-
-### Option 1: One-line installer
+## Install
 
 ```bash
-curl -s https://raw.githubusercontent.com/Bikz/gDot-ai-commit/main/install.sh | bash
+curl -s https://raw.githubusercontent.com/Bikz/git-ai-commit/main/install.sh | sh
 ```
 
-### Option 2: Manual installation
+This installs:
+- `git-ai-commit`
+- `g` and `g.` wrappers
 
-1. **Create the directory if needed:**
+Then run setup:
 
 ```bash
-mkdir -p ~/.local/bin
+git-ai-commit setup
 ```
 
-1. **Download the script:**
+Setup will ask for your default provider and whether to push by default.
 
-    ```bash
-    curl -s https://raw.githubusercontent.com/Bikz/gDot-ai-commit/main/g -o ~/.local/bin/g.
-    ```
+### Build from source
 
-2. **Make it executable:**
-
-    ```bash
-    chmod +x ~/.local/bin/g.
-    ```
-
-3. **Ensure `~/.local/bin` is in your PATH:**
-
-    Check with `echo $PATH`. If it's not listed, add it to your shell configuration file (e.g., `~/.bashrc`, `~/.zshrc`, `~/.profile`, `~/.config/fish/config.fish`). Add a line like this:
-
-    ```bash
-    export PATH="$HOME/.local/bin:$PATH"
-    ```
-
-    Then, restart your terminal or source the config file (e.g., `source ~/.zshrc`).
+```bash
+cargo build --release
+cp target/release/git-ai-commit ~/.local/bin/
+```
 
 ## Usage
 
 ```bash
-# Auto-commit with AI-generated message (uses default model 'qwen2.5-coder:1.5b')
-g.
+# AI commit (uses defaults)
+g
 
-# Use your own commit message instead of AI generation
-g. "fix: resolved authentication issue in login form"
+g.  # same as g
+
+# Use your own message
+g "fix: resolve auth session leak"
+
+# Skip push
+g --no-push
+
+# Show message without committing
+g --dry-run
+
+# Edit before commit
+g --edit
+
+# Interactive staging
+g --interactive
+
+# Skip hooks
+g --no-verify
 ```
 
-## Updating
+## Flags (selected)
 
-`gDot-ai-commit` includes a built-in mechanism to check for updates daily.
+- `--provider` `openai|ollama`
+- `--model` `<model>`
+- `--openai-mode` `auto|responses|chat`
+- `--openai-base-url`, `--ollama-endpoint`
+- `--conventional` / `--no-conventional`
+- `--one-line` / `--no-one-line`
+- `--emoji`
+- `--lang` `<locale>`
+- `--max-input-tokens`, `--max-output-tokens`
+- `--timeout` `<seconds>`
+- `--stage-all`, `--no-stage`, `--interactive`
+- `--push`, `--no-push`
+- `--yes`, `--dry-run`, `--edit`, `--no-verify`
 
-- **Automatic Check:** Once a day, the script will automatically check GitHub for a newer version. If one is found, it will print a notification suggesting you update.
-- **Manual Update:** To manually trigger an update at any time, run:
+## Commands
 
-```bash
-g. --update
-```
-
-This command will download the latest version of the g. script and replace your current one. You might need to restart your terminal session or run `hash -r` for the changes to take effect immediately.
+- `git-ai-commit setup` — guided config (provider + push default)
+- `git-ai-commit config` — show effective config + paths
+- `git-ai-commit doctor` — environment checks
+- `git-ai-commit hook install` — add prepare-commit-msg hook
+- `git-ai-commit hook uninstall` — remove hook
 
 ## Configuration
 
-You can override defaults using environment variables before running the script (e.g., `GAC_MODEL=mistral g.`) or by editing the `g.` script file (`~/.local/bin/g.`) directly:
+Precedence (highest wins):
+1. CLI flags
+2. Repo config (`.git-ai-commit.toml`, `.git-ai-commit.yaml`, `.git-ai-commit.yml`)
+3. Global config (`~/.config/git-ai-commit/config.toml`)
+4. Environment variables
+5. Defaults
 
-- **`MODEL`**: The Ollama model to use (default: "qwen2.5-coder:1.5b"). Change this if you prefer another model (e.g., "llama3", "mistral", "codegemma"). Make sure you pull it first (`ollama pull <model_name>`).
-- **`OLLAMA_ENDPOINT`**: The URL for the Ollama API (default: "<http://localhost:11434/api/chat>").
-- **`TEMP`**: Temperature setting for generation (default: 0.2).
+Example config:
 
-## How it works
-
-After you enter `g.` in your terminal, this utility will automatically:
-
-1. Stage all changes (`git add .`).
-2. Get the diff information (`git diff --staged`).
-3. If no message is provided as an argument, generate a commit message based on the diff using Ollama via its API.
-4. Commit with the generated or provided message (`git commit -m "..."`).
-5. Push to the appropriate remote and branch (`git push`).
-
-## Troubleshooting
-
-- **"Command not found: g."**: Ensure the installation directory (`~/.local/bin`) is correctly added to your `$PATH` environment variable and you've restarted your terminal or sourced your shell profile.
-- **"Error: 'jq' command not found..."**: Install `jq` using your system's package manager (e.g., `brew install jq` on macOS, `sudo apt install jq` on Debian/Ubuntu). The script requires `jq` for reliable operation.
-- **"Error: 'ollama' command not found"**: Install Ollama from [Ollama Website](https://ollama.ai).
-- **"Error: Failed to communicate with Ollama API..."**: Make sure the Ollama application or service is running (`ollama ps` or check system services). Check if the `OLLAMA_ENDPOINT` in the script is correct.
-- **"Error: Ollama API returned an error: model '...' not found"**: Ensure the model specified by the `MODEL` variable in the script (or `GAC_MODEL` env var) has been pulled (`ollama pull <model_name>`) and is listed in `ollama list`.
-
-## Other Issues
-
-If you encounter any bugs or still facing other issues, please open an issue on [GitHub Issues](https://github.com/Bikz/gDot-ai-commit/issues)
-
-## Uninstalling
-
-### Uninstalling g. Script
-
-1. Remove the script file:
-
-    ```bash
-    rm ~/.local/bin/g.
-    ```
-
-2. (Optional) Remove from PATH if needed:
-
-    ```bash
-    # Edit your shell config file (~/.bashrc or ~/.zshrc) and remove/comment out this line:
-    export PATH="$HOME/.local/bin:$PATH"
-
-    # Then reload your shell configuration
-    source ~/.bashrc  # or source ~/.zshrc
-    ```
-
-### Uninstalling Ollama
-
-**On macOS:**
-
-```bash
-# Stop Ollama service/app (adapt if run manually)
-launchctl unload ~/Library/LaunchAgents/com.ollama.ollama.plist 2>/dev/null
-ps aux | grep Ollama | grep -v grep | awk '{print $2}' | xargs kill 2>/dev/null
-
-# Remove Application and CLI tool
-rm -rf /Applications/Ollama.app
-rm /usr/local/bin/ollama 2>/dev/null
-rm /opt/homebrew/bin/ollama 2>/dev/null # If installed via Homebrew
-
-# Remove data and models (WARNING: This deletes all pulled models)
-rm -rf ~/.ollama
-
-# Remove launch agent config
-rm ~/Library/LaunchAgents/com.ollama.ollama.plist 2>/dev/null
-launchctl remove com.ollama.ollama 2>/dev/null
+```toml
+provider = "openai"
+model = "gpt-5-nano-2025-08-07"
+push = true
+conventional = true
+one_line = true
+emoji = false
+stage_mode = "auto"
+timeout_secs = 20
+max_input_tokens = 6000
+max_output_tokens = 200
 ```
 
-**On Linux:**
+### Environment variables
+
+- `OPENAI_API_KEY` (or `GAC_OPENAI_API_KEY`)
+- `GAC_PROVIDER` (openai|ollama)
+- `GAC_MODEL`
+- `GAC_OPENAI_MODE` (auto|responses|chat)
+- `GAC_OPENAI_BASE_URL`
+- `GAC_OLLAMA_ENDPOINT`
+- `GAC_PUSH`, `GAC_CONVENTIONAL`, `GAC_ONE_LINE`, `GAC_EMOJI`
+- `GAC_STAGE` (auto|all|none|interactive)
+- `GAC_TIMEOUT_SECS`, `GAC_MAX_INPUT_TOKENS`, `GAC_MAX_OUTPUT_TOKENS`
+
+## Ignore files
+
+Prompt ignores (AI only; staging still includes the files):
+
+- Global: `~/.config/git-ai-commit/ignore`
+- Repo: `.git-ai-commit-ignore` (legacy: `.gdotignore`)
+
+Defaults include `node_modules`, `dist`, `build`, lockfiles, and common generated artifacts.
+
+## Providers
+
+### OpenAI
+
+Set your key:
 
 ```bash
-# Stop Ollama service (if using systemd)
-sudo systemctl stop ollama 2>/dev/null
-sudo systemctl disable ollama 2>/dev/null
-
-# Remove CLI tool
-sudo rm /usr/local/bin/ollama 2>/dev/null
-sudo rm /usr/bin/ollama 2>/dev/null
-
-# Remove data and models (WARNING: This deletes all pulled models)
-rm -rf ~/.ollama
-
-# Remove systemd service file
-sudo rm /etc/systemd/system/ollama.service 2>/dev/null
-sudo systemctl daemon-reload 2>/dev/null
+export OPENAI_API_KEY="..."
 ```
 
-## Contributing
+GPT-5 models automatically use the Responses API and `max_completion_tokens`.
 
-Contributions welcome! Please feel free to submit a Pull Request to [GitHub Repository](https://github.com/Bikz/gDot-ai-commit).
+### Ollama
+
+Ensure Ollama is running and the model is pulled:
+
+```bash
+ollama pull qwen2.5-coder:1.5b
+```
+
+## Hooks
+
+Install the git hook to auto-fill commit messages from the editor:
+
+```bash
+git-ai-commit hook install
+```
+
+Remove it:
+
+```bash
+git-ai-commit hook uninstall
+```
+
+## License
+
+MIT

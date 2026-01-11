@@ -37,3 +37,4 @@ node_modules/
 # Build artifacts (if you ever add a build process)
 /dist/
 /build/
+target/
