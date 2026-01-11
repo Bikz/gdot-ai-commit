@@ -22,6 +22,12 @@ brew install git-ai-commit
 The formula source lives at `homebrew/git-ai-commit.rb` and should be published in a tap repo (for example `Bikz/homebrew-tap`).
 Linux arm64 bottles are not available yet.
 
+To publish the formula to your tap repo:
+
+```bash
+scripts/publish-brew.sh
+```
+
 ### npm
 
 ```bash
