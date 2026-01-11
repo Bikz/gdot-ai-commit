@@ -1,0 +1,27 @@
+{
+  "name": "git-ai-commit",
+  "version": "0.1.0",
+  "description": "One-command AI commit messages with GPT-5 and Ollama",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Bikz/git-ai-commit"
+  },
+  "homepage": "https://github.com/Bikz/git-ai-commit",
+  "keywords": [
+    "git",
+    "commit",
+    "ai",
+    "cli",
+    "conventional-commits"
+  ],
+  "bin": {
+    "git-ai-commit": "bin/git-ai-commit",
+    "g": "bin/g"
+  },
+  "os": ["darwin", "linux"],
+  "cpu": ["x64", "arm64"],
+  "scripts": {
+    "postinstall": "node scripts/install.js"
+  }
+}

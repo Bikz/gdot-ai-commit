@@ -48,7 +48,19 @@ jobs:
           ARTIFACT=${BIN}-${{ matrix.target }}.tar.gz
           tar -czf "$ARTIFACT" -C "target/${{ matrix.target }}/release" "$BIN"
 
+      - name: Checksums
+        run: |
+          ARTIFACT=git-ai-commit-${{ matrix.target }}.tar.gz
+          OUT=checksums-${{ matrix.target }}.txt
+          if command -v shasum >/dev/null 2>&1; then
+            shasum -a 256 "$ARTIFACT" > "$OUT"
+          else
+            sha256sum "$ARTIFACT" > "$OUT"
+          fi
+
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
-          files: git-ai-commit-${{ matrix.target }}.tar.gz
+          files: |
+            git-ai-commit-${{ matrix.target }}.tar.gz
+            checksums-${{ matrix.target }}.txt

@@ -12,6 +12,25 @@ One-command AI commit messages with GPT-5 and Ollama. Fast defaults, conventiona
 
 ## Install
 
+### Homebrew (recommended)
+
+```bash
+brew tap Bikz/tap
+brew install git-ai-commit
+```
+
+The formula source lives at `homebrew/git-ai-commit.rb` and should be published in a tap repo (for example `Bikz/homebrew-tap`).
+
+### npm
+
+```bash
+npm install -g git-ai-commit
+```
+
+The npm package installs `git-ai-commit` and `g` (dot alias is not available via npm).
+
+### curl installer
+
 ```bash
 curl -s https://raw.githubusercontent.com/Bikz/git-ai-commit/main/install.sh | sh
 ```
