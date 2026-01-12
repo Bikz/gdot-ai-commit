@@ -3,11 +3,11 @@
 const path = require('path');
 const { spawnSync } = require('child_process');
 
-const binary = path.join(__dirname, 'native', 'git-ai-commit');
+const binary = path.join(__dirname, 'native', 'goodcommit');
 
 const result = spawnSync(binary, process.argv.slice(2), { stdio: 'inherit' });
 if (result.error) {
-  console.error('error: git-ai-commit binary not found. Reinstall the package.');
+  console.error('error: goodcommit binary not found. Reinstall the package.');
   process.exit(1);
 }
 

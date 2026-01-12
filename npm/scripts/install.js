@@ -5,8 +5,8 @@ const path = require('path');
 const https = require('https');
 const { execFileSync } = require('child_process');
 
-const REPO = 'Bikz/git-ai-commit';
-const BIN_NAME = 'git-ai-commit';
+const REPO = 'Bikz/goodcommit';
+const BIN_NAME = 'goodcommit';
 
 function fail(message) {
   console.error(`error: ${message}`);

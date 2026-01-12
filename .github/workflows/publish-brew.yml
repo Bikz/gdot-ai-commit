@@ -3,6 +3,7 @@ name: publish-brew
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -12,6 +13,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Ensure checksums are set
+        run: |
+          if grep -q "REPLACE_ME" homebrew/goodcommit.rb; then
+            echo "Formula has placeholder checksums; skipping publish."
+            exit 0
+          fi
 
       - name: Checkout tap repo
         uses: actions/checkout@v4
@@ -25,14 +33,14 @@ jobs:
           VERSION: ${{ github.ref_name }}
         run: |
           version="${VERSION#v}"
-          cp homebrew/git-ai-commit.rb tap/Formula/git-ai-commit.rb
+          cp homebrew/goodcommit.rb tap/Formula/goodcommit.rb
           cd tap
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Formula/git-ai-commit.rb
+          git add Formula/goodcommit.rb
           if git diff --cached --quiet; then
             echo "No changes to publish"
             exit 0
           fi
-          git commit -m "chore: update git-ai-commit ${version}"
+          git commit -m "chore: update goodcommit ${version}"
           git push origin HEAD:main

@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use anyhow::{anyhow, Context, Result};
 use dialoguer::{theme::ColorfulTheme, Confirm, Input, Password, Select};
 
-use crate::config::{config_dir, openai_api_key_env, Config, ProviderKind};
+use crate::config::{config_dir, legacy_config_dir, openai_api_key_env, Config, ProviderKind};
 use crate::ignore::default_patterns;
 use crate::util::is_interactive;
 
@@ -18,6 +18,31 @@ pub fn run_setup() -> Result<()> {
     fs::create_dir_all(&config_dir).context("failed to create config directory")?;
 
     let config_path = config_dir.join("config.toml");
+    let legacy_config_path = legacy_config_dir().map(|dir| dir.join("config.toml"));
+    if !config_path.exists() {
+        if let Some(legacy_path) = legacy_config_path.as_ref() {
+            if legacy_path.exists() {
+                let migrate = Confirm::with_theme(&theme)
+                    .with_prompt("Legacy config found. Migrate to the new location?")
+                    .default(true)
+                    .interact()?;
+                if migrate {
+                    fs::copy(legacy_path, &config_path).context("failed to copy legacy config")?;
+                    set_config_permissions(&config_path)?;
+                    let legacy_ignore = legacy_config_dir().map(|dir| dir.join("ignore"));
+                    if let Some(ignore_path) = legacy_ignore {
+                        let new_ignore = config_dir.join("ignore");
+                        if ignore_path.exists() && !new_ignore.exists() {
+                            fs::copy(ignore_path, &new_ignore)
+                                .context("failed to copy legacy ignore")?;
+                        }
+                    }
+                    ensure_ignore_file(&config_dir.join("ignore"))?;
+                    return Ok(());
+                }
+            }
+        }
+    }
     if config_path.exists() {
         let overwrite = Confirm::with_theme(&theme)
             .with_prompt("config.toml already exists. Overwrite?")
@@ -67,7 +92,7 @@ pub fn run_setup() -> Result<()> {
         }
 
         if openai_key.is_none() && !had_env_key {
-            eprintln!("No OpenAI key saved. Set OPENAI_API_KEY or rerun setup.");
+            eprintln!("No OpenAI key saved. Set OPENAI_API_KEY or GOODCOMMIT_OPENAI_API_KEY.");
         }
     }
 

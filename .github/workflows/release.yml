@@ -49,13 +49,13 @@ jobs:
 
       - name: Package
         run: |
-          BIN=git-ai-commit
+          BIN=goodcommit
           ARTIFACT=${BIN}-${{ matrix.target }}.tar.gz
           tar -czf "$ARTIFACT" -C "target/${{ matrix.target }}/release" "$BIN"
 
       - name: Checksums
         run: |
-          ARTIFACT=git-ai-commit-${{ matrix.target }}.tar.gz
+          ARTIFACT=goodcommit-${{ matrix.target }}.tar.gz
           OUT=checksums-${{ matrix.target }}.txt
           if command -v shasum >/dev/null 2>&1; then
             shasum -a 256 "$ARTIFACT" > "$OUT"
@@ -67,5 +67,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            git-ai-commit-${{ matrix.target }}.tar.gz
+            goodcommit-${{ matrix.target }}.tar.gz
             checksums-${{ matrix.target }}.txt

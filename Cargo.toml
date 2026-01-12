@@ -1,10 +1,10 @@
 [package]
-name = "git-ai-commit"
-version = "0.1.5"
+name = "goodcommit"
+version = "0.2.0"
 edition = "2021"
 license = "MIT"
-description = "One-command AI commit messages with GPT-5 and Ollama"
-repository = "https://github.com/Bikz/git-ai-commit"
+description = "Good Commit: fast, reliable AI commit messages"
+repository = "https://github.com/Bikz/goodcommit"
 
 [dependencies]
 anyhow = "1.0"

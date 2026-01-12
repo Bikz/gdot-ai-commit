@@ -1,15 +1,15 @@
-# git-ai-commit (npm)
+# goodcommit (npm)
 
-Install the `git-ai-commit` binary from GitHub Releases via npm.
+Install the `goodcommit` binary from GitHub Releases via npm.
 
 ## Install
 
 ```bash
-npm install -g git-ai-commit
+npm install -g goodcommit
 ```
 
 Commands installed:
-- `git-ai-commit`
+- `goodcommit`
 - `g`
 
 For `g.` (dot) alias, use the curl installer or Homebrew.
@@ -17,7 +17,7 @@ For `g.` (dot) alias, use the curl installer or Homebrew.
 ## Setup
 
 ```bash
-git-ai-commit setup
+goodcommit setup
 ```
 
 Setup asks for your provider, push defaults, and (if OpenAI) your API key.

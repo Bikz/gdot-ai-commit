@@ -1,3 +1,3 @@
 #!/bin/sh
 
-exec git-ai-commit "$@"
+exec goodcommit "$@"

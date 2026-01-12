@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-REPO="Bikz/git-ai-commit"
-BIN_NAME="git-ai-commit"
+REPO="Bikz/goodcommit"
+BIN_NAME="goodcommit"
 INSTALL_DIR="$HOME/.local/bin"
 
 for cmd in curl tar mktemp; do
@@ -68,20 +68,20 @@ chmod 755 "$INSTALL_DIR/$BIN_NAME"
 
 cat > "$INSTALL_DIR/g" <<'SH'
 #!/bin/sh
-exec git-ai-commit "$@"
+exec goodcommit "$@"
 SH
 
 cat > "$INSTALL_DIR/g." <<'SH'
 #!/bin/sh
-exec git-ai-commit "$@"
+exec goodcommit "$@"
 SH
 
 chmod +x "$INSTALL_DIR/g" "$INSTALL_DIR/g."
 
 echo "installed $BIN_NAME to $INSTALL_DIR"
 echo "aliases installed: g, g."
-echo "next: run 'git-ai-commit setup' to configure your provider"
+echo "next: run 'goodcommit setup' to configure your provider"
 case ":$PATH:" in
   *":$INSTALL_DIR:"*) ;;
-  *) echo "note: add $INSTALL_DIR to your PATH to use g or git-ai-commit directly" ;;
+  *) echo "note: add $INSTALL_DIR to your PATH to use g or goodcommit directly" ;;
 esac

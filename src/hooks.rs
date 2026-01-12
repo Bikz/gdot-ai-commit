@@ -13,8 +13,7 @@ pub fn install_hook() -> Result<()> {
     fs::create_dir_all(&hooks_dir).context("failed to create hooks directory")?;
 
     let hook_path = hooks_dir.join(HOOK_NAME);
-    let script =
-        "#!/bin/sh\n# git-ai-commit hook\nexec git-ai-commit hook run \"$1\" \"$2\" \"$3\"\n";
+    let script = "#!/bin/sh\n# goodcommit hook\nexec goodcommit hook run \"$1\" \"$2\" \"$3\"\n";
     fs::write(&hook_path, script).context("failed to write hook")?;
 
     #[cfg(unix)]

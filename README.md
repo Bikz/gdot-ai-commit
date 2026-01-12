@@ -1,6 +1,8 @@
-# git-ai-commit (g, g.)
+# Good Commit (goodcommit, g, g.)
 
-Fast, friendly AI commit messages in one command. Built in Rust for speed and reliability, `git-ai-commit` stages changes (configurable), generates a commit message, commits, and can optionally push. Works with OpenAI (including GPT‑5) or local Ollama, and stays safe on large diffs with smart fallbacks.
+Fast, friendly AI commit messages in one command. Built in Rust for speed and reliability, `goodcommit` stages changes (configurable), generates a commit message, commits, and can optionally push. Works with OpenAI (including GPT‑5) or local Ollama, and stays safe on large diffs with smart fallbacks.
+
+Keywords: git ai commit, ai commit tool, opencommit alternative.
 
 ## Highlights
 
@@ -15,25 +17,25 @@ Fast, friendly AI commit messages in one command. Built in Rust for speed and re
 
 ```bash
 brew tap Bikz/tap
-brew install git-ai-commit
+brew install goodcommit
 ```
 
 ### npm
 
 ```bash
-npm install -g git-ai-commit
+npm install -g goodcommit
 ```
 
 ### curl installer
 
 ```bash
-curl -s https://raw.githubusercontent.com/Bikz/git-ai-commit/main/install.sh | sh
+curl -s https://raw.githubusercontent.com/Bikz/goodcommit/main/install.sh | sh
 ```
 
 ## Setup
 
 ```bash
-git-ai-commit setup
+goodcommit setup
 ```
 
 Setup asks for your provider, default push behavior, and (if OpenAI) your API key. You can also set `OPENAI_API_KEY` instead of storing it in config. Create a key at:
@@ -63,8 +65,9 @@ g --interactive
 Config precedence: CLI flags > repo config > global config > env > defaults.
 
 Config files:
-- Global: `~/.config/git-ai-commit/config.toml`
-- Repo: `.git-ai-commit.toml`
+- Global: `~/.config/goodcommit/config.toml`
+- Repo: `.goodcommit.toml`
+Legacy `git-ai-commit` config/ignore files are still read.
 
 Example:
 
@@ -77,8 +80,8 @@ one_line = true
 ```
 
 Ignore files (for AI prompt only):
-- Global: `~/.config/git-ai-commit/ignore`
-- Repo: `.git-ai-commit-ignore`
+- Global: `~/.config/goodcommit/ignore`
+- Repo: `.goodcommit-ignore`
 
 ## Providers
 
@@ -99,8 +102,8 @@ ollama pull qwen2.5-coder:1.5b
 ## Hooks
 
 ```bash
-git-ai-commit hook install
-git-ai-commit hook uninstall
+goodcommit hook install
+goodcommit hook uninstall
 ```
 
 ## Contributing

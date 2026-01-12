@@ -25,9 +25,9 @@ use crate::util::{is_interactive, join_message_args, trim_quotes};
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "git-ai-commit",
+    name = "goodcommit",
     version,
-    about = "One-command AI commit messages"
+    about = "Good Commit: fast AI commit messages"
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -654,7 +654,7 @@ fn run_doctor(cli: &Cli) -> Result<()> {
             if config.openai_api_key.is_some() {
                 ui::info("openai api key: detected");
             } else {
-                ui::warn("openai api key: missing (run setup or set OPENAI_API_KEY)");
+                ui::warn("openai api key: missing (run setup or set OPENAI_API_KEY or GOODCOMMIT_OPENAI_API_KEY)");
             }
         }
         ProviderKind::Ollama => {
