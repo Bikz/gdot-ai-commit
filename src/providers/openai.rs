@@ -5,7 +5,7 @@ use rand::{thread_rng, Rng};
 use reqwest::StatusCode;
 use serde_json::Value;
 
-use crate::config::{openai_api_key, OpenAiMode};
+use crate::config::{openai_api_key_env, OpenAiMode};
 use crate::providers::{openai_mode_for, Provider, ProviderRequest};
 
 pub struct OpenAiProvider {
@@ -22,8 +22,11 @@ impl OpenAiProvider {
         base_url: String,
         mode: OpenAiMode,
         timeout_secs: u64,
+        api_key: Option<String>,
     ) -> Result<Self> {
-        let api_key = openai_api_key().ok_or_else(|| anyhow!("OPENAI_API_KEY is not set"))?;
+        let api_key = api_key.or_else(openai_api_key_env).ok_or_else(|| {
+            anyhow!("OpenAI API key is missing (run setup or set OPENAI_API_KEY)")
+        })?;
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(timeout_secs))
             .build()

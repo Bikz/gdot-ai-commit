@@ -7,34 +7,35 @@
 *.sublime-project
 *.sublime-workspace
 
-# General temporary files
+# Environment files
+.env
+.env.*
+!.env.example
+.direnv/
+.envrc
+
+# Logs
+*.log
+
+# Temporary files
 *~
 *.swp
 *.swo
-
-# Python cache
-__pycache__/
-*.pyc
+*.tmp
+*.temp
 
 # OS generated files
 Thumbs.db
 ehthumbs.db
 
-# Test files
-another_test.txt
-another_test_file.txt
-final_test.txt
-test_file.txt
-test_install.sh
-
-# Temporary files
-*.tmp
-*.temp
-
-# Node modules (if you ever use Node tools)
-node_modules/
-
-# Build artifacts (if you ever add a build process)
+# Build artifacts
+/target/
 /dist/
 /build/
-target/
+/coverage/
+
+# Node modules and package managers
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*

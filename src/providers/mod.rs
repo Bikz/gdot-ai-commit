@@ -32,6 +32,7 @@ pub fn build_provider(config: &EffectiveConfig) -> Result<Box<dyn Provider>> {
             config.openai_base_url.clone(),
             config.openai_mode,
             config.timeout_secs,
+            config.openai_api_key.clone(),
         )?)),
         ProviderKind::Ollama => Ok(Box::new(OllamaProvider::new(
             config.model.clone(),

@@ -83,6 +83,7 @@ pub struct Config {
     pub model: Option<String>,
     pub openai_mode: Option<OpenAiMode>,
     pub openai_base_url: Option<String>,
+    pub openai_api_key: Option<String>,
     pub ollama_endpoint: Option<String>,
     pub conventional: Option<bool>,
     pub one_line: Option<bool>,
@@ -105,6 +106,7 @@ impl Config {
             model: Some("qwen2.5-coder:1.5b".to_string()),
             openai_mode: Some(OpenAiMode::Auto),
             openai_base_url: Some("https://api.openai.com/v1".to_string()),
+            openai_api_key: None,
             ollama_endpoint: Some("http://localhost:11434/api/chat".to_string()),
             conventional: Some(true),
             one_line: Some(true),
@@ -127,6 +129,7 @@ impl Config {
             model: other.model.or(self.model),
             openai_mode: other.openai_mode.or(self.openai_mode),
             openai_base_url: other.openai_base_url.or(self.openai_base_url),
+            openai_api_key: other.openai_api_key.or(self.openai_api_key),
             ollama_endpoint: other.ollama_endpoint.or(self.ollama_endpoint),
             conventional: other.conventional.or(self.conventional),
             one_line: other.one_line.or(self.one_line),
@@ -153,6 +156,7 @@ impl Config {
             openai_base_url: self
                 .openai_base_url
                 .unwrap_or_else(|| "https://api.openai.com/v1".to_string()),
+            openai_api_key: self.openai_api_key,
             ollama_endpoint: self
                 .ollama_endpoint
                 .unwrap_or_else(|| "http://localhost:11434/api/chat".to_string()),
@@ -178,6 +182,7 @@ pub struct EffectiveConfig {
     pub model: String,
     pub openai_mode: OpenAiMode,
     pub openai_base_url: String,
+    pub openai_api_key: Option<String>,
     pub ollama_endpoint: String,
     pub conventional: bool,
     pub one_line: bool,
@@ -200,6 +205,7 @@ impl EffectiveConfig {
             model: Some(self.model.clone()),
             openai_mode: Some(self.openai_mode),
             openai_base_url: Some(self.openai_base_url.clone()),
+            openai_api_key: self.openai_api_key.clone(),
             ollama_endpoint: Some(self.ollama_endpoint.clone()),
             conventional: Some(self.conventional),
             one_line: Some(self.one_line),
@@ -328,6 +334,10 @@ pub fn config_from_env() -> Config {
         config.openai_base_url = Some(value);
     }
 
+    if let Some(value) = openai_api_key_env() {
+        config.openai_api_key = Some(value);
+    }
+
     if let Ok(value) = env::var("GAC_OLLAMA_ENDPOINT") {
         config.ollama_endpoint = Some(value);
     }
@@ -417,7 +427,7 @@ fn find_config_file(base: &Path, candidates: &[&str]) -> Option<PathBuf> {
     None
 }
 
-pub fn openai_api_key() -> Option<String> {
+pub fn openai_api_key_env() -> Option<String> {
     env::var("GAC_OPENAI_API_KEY")
         .ok()
         .or_else(|| env::var("OPENAI_API_KEY").ok())

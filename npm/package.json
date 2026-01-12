@@ -1,6 +1,6 @@
 {
   "name": "git-ai-commit",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "One-command AI commit messages with GPT-5 and Ollama",
   "license": "MIT",
   "repository": {
@@ -13,7 +13,12 @@
     "commit",
     "ai",
     "cli",
-    "conventional-commits"
+    "conventional-commits",
+    "commit-message",
+    "openai",
+    "ollama",
+    "gpt-5",
+    "opencommit"
   ],
   "bin": {
     "git-ai-commit": "bin/git-ai-commit",

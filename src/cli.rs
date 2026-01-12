@@ -623,7 +623,11 @@ fn run_config(cli: &Cli) -> Result<()> {
         ui::info("repo ignore: (none)");
     }
 
-    let toml = toml::to_string_pretty(&config.to_config())?;
+    let mut printable = config.to_config();
+    if printable.openai_api_key.is_some() {
+        printable.openai_api_key = Some("[redacted]".to_string());
+    }
+    let toml = toml::to_string_pretty(&printable)?;
     ui::info("effective config:");
     println!("{toml}");
 
@@ -647,10 +651,10 @@ fn run_doctor(cli: &Cli) -> Result<()> {
 
     match config.provider {
         ProviderKind::OpenAi => {
-            if crate::config::openai_api_key().is_some() {
+            if config.openai_api_key.is_some() {
                 ui::info("openai api key: detected");
             } else {
-                ui::warn("openai api key: missing (set OPENAI_API_KEY)");
+                ui::warn("openai api key: missing (run setup or set OPENAI_API_KEY)");
             }
         }
         ProviderKind::Ollama => {

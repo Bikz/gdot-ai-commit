@@ -2,9 +2,9 @@ use std::fs;
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context, Result};
-use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select};
+use dialoguer::{theme::ColorfulTheme, Confirm, Input, Password, Select};
 
-use crate::config::{config_dir, openai_api_key, Config, ProviderKind};
+use crate::config::{config_dir, openai_api_key_env, Config, ProviderKind};
 use crate::ignore::default_patterns;
 use crate::util::is_interactive;
 
@@ -40,8 +40,35 @@ pub fn run_setup() -> Result<()> {
         (ProviderKind::Ollama, "qwen2.5-coder:1.5b")
     };
 
-    if provider_kind == ProviderKind::OpenAi && openai_api_key().is_none() {
-        eprintln!("warning: OPENAI_API_KEY not set; set it before using OpenAI models");
+    let mut openai_key = None;
+    if provider_kind == ProviderKind::OpenAi {
+        let env_key = openai_api_key_env();
+        let had_env_key = env_key.is_some();
+
+        if let Some(existing) = env_key {
+            eprintln!("OpenAI API key detected in your environment.");
+            let save = Confirm::with_theme(&theme)
+                .with_prompt("Save it to config.toml? (stored in plaintext)")
+                .default(false)
+                .interact()?;
+            if save {
+                openai_key = Some(existing);
+            }
+        } else {
+            eprintln!("OpenAI API key required. Get one at:");
+            eprintln!("https://platform.openai.com/api-keys");
+            let key = Password::with_theme(&theme)
+                .with_prompt("Enter OpenAI API key (stored in config.toml)")
+                .allow_empty_password(true)
+                .interact()?;
+            if !key.trim().is_empty() {
+                openai_key = Some(key);
+            }
+        }
+
+        if openai_key.is_none() && !had_env_key {
+            eprintln!("No OpenAI key saved. Set OPENAI_API_KEY or rerun setup.");
+        }
     }
 
     let model: String = Input::with_theme(&theme)
@@ -57,6 +84,7 @@ pub fn run_setup() -> Result<()> {
     let mut config = Config::default();
     config.provider = Some(provider_kind);
     config.model = Some(model);
+    config.openai_api_key = openai_key;
     config.push = Some(push);
     config.conventional = Some(true);
     config.one_line = Some(true);
@@ -67,6 +95,7 @@ pub fn run_setup() -> Result<()> {
 
     let toml = toml::to_string_pretty(&config).context("failed to serialize config")?;
     fs::write(&config_path, toml).context("failed to write config")?;
+    set_config_permissions(&config_path)?;
 
     ensure_ignore_file(&config_dir.join("ignore"))?;
 
@@ -81,4 +110,17 @@ fn ensure_ignore_file(path: &PathBuf) -> Result<()> {
     let patterns = default_patterns();
     let content = patterns.join("\n") + "\n";
     fs::write(path, content).context("failed to write ignore file")
+}
+
+#[cfg(unix)]
+fn set_config_permissions(path: &PathBuf) -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let perms = fs::Permissions::from_mode(0o600);
+    fs::set_permissions(path, perms).context("failed to set config permissions")
+}
+
+#[cfg(not(unix))]
+fn set_config_permissions(_path: &PathBuf) -> Result<()> {
+    Ok(())
 }

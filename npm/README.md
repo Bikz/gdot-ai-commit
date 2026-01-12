@@ -1,6 +1,6 @@
 # git-ai-commit (npm)
 
-This package installs the `git-ai-commit` binary from GitHub Releases.
+Install the `git-ai-commit` binary from GitHub Releases via npm.
 
 ## Install
 
@@ -19,3 +19,6 @@ For `g.` (dot) alias, use the curl installer or Homebrew.
 ```bash
 git-ai-commit setup
 ```
+
+Setup asks for your provider, push defaults, and (if OpenAI) your API key.
+You can also set `OPENAI_API_KEY` instead of storing it in config.
