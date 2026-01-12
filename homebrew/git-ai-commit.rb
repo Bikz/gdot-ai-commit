@@ -2,6 +2,7 @@ class GitAiCommit < Formula
   desc "One-command AI commit messages with GPT-5 and Ollama"
   homepage "https://github.com/Bikz/git-ai-commit"
   version "0.1.3"
+  revision 1
 
   on_macos do
     if Hardware::CPU.arm?
