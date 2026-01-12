@@ -1,10 +1,10 @@
 use std::fs;
 use std::path::Path;
 
-use anyhow::Result;
 use globset::{Glob, GlobSet, GlobSetBuilder};
 
 use crate::config::ConfigPaths;
+use crate::error::{CoreError, CoreResult};
 
 pub struct IgnoreMatcher {
     globset: GlobSet,
@@ -19,7 +19,7 @@ impl IgnoreMatcher {
 pub fn build_ignore_matcher(
     config_patterns: &[String],
     paths: &ConfigPaths,
-) -> Result<IgnoreMatcher> {
+) -> CoreResult<IgnoreMatcher> {
     let mut patterns = Vec::new();
     patterns.extend(default_patterns());
 
@@ -41,9 +41,11 @@ pub fn build_ignore_matcher(
         }
     }
 
-    Ok(IgnoreMatcher {
-        globset: builder.build()?,
-    })
+    let globset = builder
+        .build()
+        .map_err(|err| CoreError::Config(format!("invalid ignore patterns: {err}")))?;
+
+    Ok(IgnoreMatcher { globset })
 }
 
 pub fn read_ignore_file(path: &Path) -> Vec<String> {

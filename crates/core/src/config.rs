@@ -2,7 +2,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
+use crate::error::{CoreError, CoreResult};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
@@ -93,6 +93,10 @@ pub struct Config {
     pub timeout_secs: Option<u64>,
     pub max_input_tokens: Option<u32>,
     pub max_output_tokens: Option<u32>,
+    pub max_file_bytes: Option<u64>,
+    pub max_file_lines: Option<u32>,
+    pub summary_concurrency: Option<u32>,
+    pub max_files: Option<u32>,
     pub stage_mode: Option<StageMode>,
     pub confirm: Option<bool>,
     pub temperature: Option<f32>,
@@ -116,6 +120,10 @@ impl Config {
             timeout_secs: Some(20),
             max_input_tokens: Some(6000),
             max_output_tokens: Some(200),
+            max_file_bytes: Some(200_000),
+            max_file_lines: Some(2_000),
+            summary_concurrency: Some(4),
+            max_files: Some(40),
             stage_mode: Some(StageMode::Auto),
             confirm: Some(true),
             temperature: Some(0.2),
@@ -139,6 +147,10 @@ impl Config {
             timeout_secs: other.timeout_secs.or(self.timeout_secs),
             max_input_tokens: other.max_input_tokens.or(self.max_input_tokens),
             max_output_tokens: other.max_output_tokens.or(self.max_output_tokens),
+            max_file_bytes: other.max_file_bytes.or(self.max_file_bytes),
+            max_file_lines: other.max_file_lines.or(self.max_file_lines),
+            summary_concurrency: other.summary_concurrency.or(self.summary_concurrency),
+            max_files: other.max_files.or(self.max_files),
             stage_mode: other.stage_mode.or(self.stage_mode),
             confirm: other.confirm.or(self.confirm),
             temperature: other.temperature.or(self.temperature),
@@ -146,7 +158,7 @@ impl Config {
         }
     }
 
-    pub fn resolve(self) -> Result<EffectiveConfig> {
+    pub fn resolve(self) -> CoreResult<EffectiveConfig> {
         Ok(EffectiveConfig {
             provider: self.provider.unwrap_or(ProviderKind::Ollama),
             model: self
@@ -168,6 +180,10 @@ impl Config {
             timeout_secs: self.timeout_secs.unwrap_or(20),
             max_input_tokens: self.max_input_tokens.unwrap_or(6000),
             max_output_tokens: self.max_output_tokens.unwrap_or(200),
+            max_file_bytes: self.max_file_bytes.unwrap_or(200_000),
+            max_file_lines: self.max_file_lines.unwrap_or(2_000),
+            summary_concurrency: self.summary_concurrency.unwrap_or(4) as usize,
+            max_files: self.max_files.unwrap_or(40) as usize,
             stage_mode: self.stage_mode.unwrap_or(StageMode::Auto),
             confirm: self.confirm.unwrap_or(true),
             temperature: self.temperature.unwrap_or(0.2),
@@ -192,6 +208,10 @@ pub struct EffectiveConfig {
     pub timeout_secs: u64,
     pub max_input_tokens: u32,
     pub max_output_tokens: u32,
+    pub max_file_bytes: u64,
+    pub max_file_lines: u32,
+    pub summary_concurrency: usize,
+    pub max_files: usize,
     pub stage_mode: StageMode,
     pub confirm: bool,
     pub temperature: f32,
@@ -215,6 +235,10 @@ impl EffectiveConfig {
             timeout_secs: Some(self.timeout_secs),
             max_input_tokens: Some(self.max_input_tokens),
             max_output_tokens: Some(self.max_output_tokens),
+            max_file_bytes: Some(self.max_file_bytes),
+            max_file_lines: Some(self.max_file_lines),
+            summary_concurrency: Some(self.summary_concurrency as u32),
+            max_files: Some(self.max_files as u32),
             stage_mode: Some(self.stage_mode),
             confirm: Some(self.confirm),
             temperature: Some(self.temperature),
@@ -231,7 +255,7 @@ pub struct ConfigPaths {
     pub repo_ignore: Option<PathBuf>,
 }
 
-pub fn config_dir() -> Result<PathBuf> {
+pub fn config_dir() -> CoreResult<PathBuf> {
     if let Ok(home) = env::var("HOME") {
         return Ok(PathBuf::from(home).join(".config").join("goodcommit"));
     }
@@ -242,10 +266,12 @@ pub fn config_dir() -> Result<PathBuf> {
             .join("goodcommit"));
     }
 
-    Err(anyhow::anyhow!("unable to resolve config directory"))
+    Err(CoreError::Config(
+        "unable to resolve config directory".to_string(),
+    ))
 }
 
-pub fn resolve_paths(repo_root: Option<&Path>) -> Result<ConfigPaths> {
+pub fn resolve_paths(repo_root: Option<&Path>) -> CoreResult<ConfigPaths> {
     let config_dir = config_dir()?;
 
     let global_config =
@@ -276,7 +302,7 @@ pub fn resolve_paths(repo_root: Option<&Path>) -> Result<ConfigPaths> {
     })
 }
 
-pub fn load_config(paths: &ConfigPaths) -> Result<Config> {
+pub fn load_config(paths: &ConfigPaths) -> CoreResult<Config> {
     let mut config = Config::default();
 
     if let Some(path) = &paths.global_config {
@@ -290,16 +316,18 @@ pub fn load_config(paths: &ConfigPaths) -> Result<Config> {
     Ok(config)
 }
 
-pub fn read_config_file(path: &Path) -> Result<Config> {
-    let content =
-        fs::read_to_string(path).with_context(|| format!("failed reading config {path:?}"))?;
+pub fn read_config_file(path: &Path) -> CoreResult<Config> {
+    let content = fs::read_to_string(path).map_err(|err| {
+        CoreError::Config(format!("failed reading config {}: {err}", path.display()))
+    })?;
 
     match path.extension().and_then(|ext| ext.to_str()) {
-        Some("toml") => toml::from_str(&content).context("failed parsing toml config"),
-        Some("yaml") | Some("yml") => {
-            serde_yaml::from_str(&content).context("failed parsing yaml config")
-        }
-        _ => toml::from_str(&content).context("failed parsing config"),
+        Some("toml") => toml::from_str(&content)
+            .map_err(|err| CoreError::Config(format!("failed parsing toml config: {err}"))),
+        Some("yaml") | Some("yml") => serde_yaml::from_str(&content)
+            .map_err(|err| CoreError::Config(format!("failed parsing yaml config: {err}"))),
+        _ => toml::from_str(&content)
+            .map_err(|err| CoreError::Config(format!("failed parsing config: {err}"))),
     }
 }
 
@@ -380,6 +408,30 @@ pub fn config_from_env() -> Config {
         }
     }
 
+    if let Ok(value) = env::var("GOODCOMMIT_MAX_FILE_BYTES") {
+        if let Ok(parsed) = value.parse::<u64>() {
+            config.max_file_bytes = Some(parsed);
+        }
+    }
+
+    if let Ok(value) = env::var("GOODCOMMIT_MAX_FILE_LINES") {
+        if let Ok(parsed) = value.parse::<u32>() {
+            config.max_file_lines = Some(parsed);
+        }
+    }
+
+    if let Ok(value) = env::var("GOODCOMMIT_SUMMARY_CONCURRENCY") {
+        if let Ok(parsed) = value.parse::<u32>() {
+            config.summary_concurrency = Some(parsed);
+        }
+    }
+
+    if let Ok(value) = env::var("GOODCOMMIT_MAX_FILES") {
+        if let Ok(parsed) = value.parse::<u32>() {
+            config.max_files = Some(parsed);
+        }
+    }
+
     if let Ok(value) = env::var("GOODCOMMIT_STAGE") {
         if let Ok(stage) = value.parse() {
             config.stage_mode = Some(stage);
@@ -432,4 +484,21 @@ fn env_any(keys: &[&str]) -> Option<String> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn merge_overrides_defaults() {
+        let base = Config::defaults();
+        let override_config = Config {
+            push: Some(false),
+            ..Config::default()
+        };
+
+        let merged = base.merge(override_config).resolve().expect("resolve");
+        assert!(!merged.push);
+    }
 }

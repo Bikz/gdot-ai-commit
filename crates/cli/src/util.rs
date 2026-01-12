@@ -11,12 +11,3 @@ pub fn join_message_args(args: &[String]) -> Option<String> {
         Some(args.join(" "))
     }
 }
-
-pub fn trim_quotes(input: &str) -> String {
-    let trimmed = input.trim();
-    trimmed
-        .trim_matches('`')
-        .trim_matches('"')
-        .trim_matches('`')
-        .to_string()
-}

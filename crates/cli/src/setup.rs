@@ -4,9 +4,10 @@ use std::path::PathBuf;
 use anyhow::{anyhow, Context, Result};
 use dialoguer::{theme::ColorfulTheme, Confirm, Input, Password, Select};
 
-use crate::config::{config_dir, openai_api_key_env, Config, ProviderKind};
-use crate::ignore::default_patterns;
+use crate::ui;
 use crate::util::is_interactive;
+use goodcommit_core::config::{config_dir, openai_api_key_env, Config, ProviderKind, StageMode};
+use goodcommit_core::ignore::default_patterns;
 
 pub fn run_setup() -> Result<()> {
     if !is_interactive() {
@@ -24,6 +25,7 @@ pub fn run_setup() -> Result<()> {
             .default(false)
             .interact()?;
         if !overwrite {
+            ui::info("setup skipped (config exists)");
             return Ok(());
         }
     }
@@ -91,7 +93,7 @@ pub fn run_setup() -> Result<()> {
     config.timeout_secs = Some(20);
     config.max_input_tokens = Some(6000);
     config.max_output_tokens = Some(200);
-    config.stage_mode = Some(crate::config::StageMode::Auto);
+    config.stage_mode = Some(StageMode::Auto);
 
     let toml = toml::to_string_pretty(&config).context("failed to serialize config")?;
     fs::write(&config_path, toml).context("failed to write config")?;

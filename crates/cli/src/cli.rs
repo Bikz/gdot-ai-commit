@@ -1,27 +1,22 @@
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use clap::{ArgAction, Parser, Subcommand};
 use dialoguer::{theme::ColorfulTheme, Confirm};
-use regex::Regex;
+use tracing_subscriber::EnvFilter;
 
-use crate::config::{
+use goodcommit_core::config::{
     config_from_env, load_config, resolve_paths, Config, EffectiveConfig, ProviderKind, StageMode,
 };
-use crate::diff::{
-    diff_files_to_string, estimate_tokens, filter_diff_files, parse_diff, truncate_to_tokens,
-    DiffFile,
-};
-use crate::git;
+use goodcommit_core::git::{GitBackend, SystemGit};
+use goodcommit_core::ignore::build_ignore_matcher;
+use goodcommit_core::pipeline::{generate_commit_message, PipelineResult};
+use goodcommit_core::providers::build_provider;
+
 use crate::hooks;
-use crate::ignore::build_ignore_matcher;
-use crate::prompt::{
-    commit_system_prompt, commit_user_prompt, summary_system_prompt, summary_user_prompt,
-};
-use crate::providers::{build_provider, Provider, ProviderRequest};
 use crate::setup;
 use crate::ui;
-use crate::util::{is_interactive, join_message_args, trim_quotes};
+use crate::util::{is_interactive, join_message_args};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -53,7 +48,18 @@ pub struct Cli {
     #[arg(long)]
     max_output_tokens: Option<u32>,
     #[arg(long)]
+    max_file_bytes: Option<u64>,
+    #[arg(long)]
+    max_file_lines: Option<u32>,
+    #[arg(long)]
+    summary_concurrency: Option<u32>,
+    #[arg(long)]
+    max_files: Option<u32>,
+    #[arg(long)]
     lang: Option<String>,
+
+    #[arg(short = 'l', long, action = ArgAction::SetTrue)]
+    local: bool,
 
     #[arg(long, action = ArgAction::SetTrue)]
     conventional: bool,
@@ -92,12 +98,16 @@ pub struct Cli {
     no_verify: bool,
     #[arg(long, action = ArgAction::SetTrue)]
     skip_verify: bool,
+
+    #[arg(long, action = ArgAction::SetTrue)]
+    verbose: bool,
 }
 
 #[derive(Subcommand, Debug)]
 enum Commands {
     Config,
     Doctor,
+    #[command(alias = "init")]
     Setup,
     Hook {
         #[command(subcommand)]
@@ -119,6 +129,8 @@ enum HookAction {
 
 pub async fn run() -> Result<()> {
     let mut cli = Cli::parse();
+    init_tracing(cli.verbose);
+
     let command = cli.command.take();
 
     match command {
@@ -137,14 +149,16 @@ pub async fn run() -> Result<()> {
         }
         Some(Commands::Hook { action }) => match action {
             HookAction::Install => {
-                git::ensure_git_repo()?;
-                hooks::install_hook()?;
+                let git = SystemGit::new();
+                git.ensure_git_repo()?;
+                hooks::install_hook(&git)?;
                 ui::success("hook installed");
                 return Ok(());
             }
             HookAction::Uninstall => {
-                git::ensure_git_repo()?;
-                hooks::uninstall_hook()?;
+                let git = SystemGit::new();
+                git.ensure_git_repo()?;
+                hooks::uninstall_hook(&git)?;
                 ui::success("hook removed");
                 return Ok(());
             }
@@ -157,6 +171,21 @@ pub async fn run() -> Result<()> {
     }
 
     run_commit(cli).await
+}
+
+fn init_tracing(verbose: bool) {
+    let default_filter = if verbose {
+        "goodcommit=debug,goodcommit_core=debug"
+    } else {
+        "goodcommit=info,goodcommit_core=info"
+    };
+
+    let filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(default_filter));
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_target(false)
+        .init();
 }
 
 fn build_cli_overrides(cli: &Cli) -> Result<Config> {
@@ -194,6 +223,22 @@ fn build_cli_overrides(cli: &Cli) -> Result<Config> {
         config.max_output_tokens = Some(max_output);
     }
 
+    if let Some(max_file_bytes) = cli.max_file_bytes {
+        config.max_file_bytes = Some(max_file_bytes);
+    }
+
+    if let Some(max_file_lines) = cli.max_file_lines {
+        config.max_file_lines = Some(max_file_lines);
+    }
+
+    if let Some(summary_concurrency) = cli.summary_concurrency {
+        config.summary_concurrency = Some(summary_concurrency);
+    }
+
+    if let Some(max_files) = cli.max_files {
+        config.max_files = Some(max_files);
+    }
+
     if let Some(lang) = &cli.lang {
         config.lang = Some(lang.clone());
     }
@@ -217,6 +262,10 @@ fn build_cli_overrides(cli: &Cli) -> Result<Config> {
     }
     if cli.no_emoji {
         config.emoji = Some(false);
+    }
+
+    if cli.local {
+        config.push = Some(false);
     }
 
     if cli.push {
@@ -265,7 +314,7 @@ fn stage_mode_conflicts(cli: &Cli) -> Result<()> {
 fn config_for_repo(
     cli: &Cli,
     repo_root: Option<&std::path::Path>,
-) -> Result<(EffectiveConfig, crate::config::ConfigPaths)> {
+) -> Result<(EffectiveConfig, goodcommit_core::config::ConfigPaths)> {
     stage_mode_conflicts(cli)?;
 
     let paths = resolve_paths(repo_root)?;
@@ -283,73 +332,93 @@ fn config_for_repo(
 }
 
 async fn run_commit(cli: Cli) -> Result<()> {
-    git::ensure_git_repo()?;
-    let repo_root = git::repo_root()?;
+    if maybe_setup_from_message(&cli)? {
+        return Ok(());
+    }
+
+    let git = SystemGit::new();
+    git.ensure_git_repo()?;
+    let repo_root = git.repo_root()?;
     maybe_prompt_setup(&cli, Some(&repo_root))?;
     let (config, paths) = config_for_repo(&cli, Some(&repo_root))?;
 
     let ignore_matcher = build_ignore_matcher(&config.ignore, &paths)?;
 
     match config.stage_mode {
-        StageMode::All => git::stage_all()?,
-        StageMode::Interactive => git::stage_interactive()?,
+        StageMode::All => git.stage_all()?,
+        StageMode::Interactive => git.stage_interactive()?,
         StageMode::None => {}
         StageMode::Auto => {
-            let staged_files = git::staged_files()?;
+            let staged_files = git.staged_files()?;
             if staged_files.is_empty() {
-                git::stage_all()?;
+                git.stage_all()?;
             }
         }
     }
 
-    let staged_files = git::staged_files()?;
-    if staged_files.is_empty() {
-        if git::has_unstaged_changes()? {
-            ui::warn("no staged changes; stage files or use --stage-all");
-        } else {
-            ui::info("working tree clean");
-        }
-        return Ok(());
+    if let Some(message) = join_message_args(&cli.message) {
+        return commit_with_message(&git, &config, &cli, &message);
     }
 
-    let raw_diff = git::staged_diff()?;
-    if raw_diff.trim().is_empty() {
-        ui::info("no diff content for staged files");
-        return Ok(());
-    }
-
-    let diff_files = filter_diff_files(parse_diff(&raw_diff), &ignore_matcher);
-    let diff_for_prompt = diff_files_to_string(&diff_files);
-
-    let message = if let Some(message) = join_message_args(&cli.message) {
-        message
-    } else if diff_for_prompt.trim().is_empty() {
-        fallback_message(&diff_files, &config)
-    } else {
-        match build_provider(&config) {
-            Ok(provider) => {
-                match generate_commit_message(&*provider, &config, &diff_files, &diff_for_prompt)
-                    .await
-                {
-                    Ok(message) => message,
-                    Err(err) => {
-                        ui::warn(&format!("ai generation failed, using fallback: {err}"));
-                        fallback_message(&diff_files, &config)
-                    }
-                }
-            }
-            Err(err) => {
-                ui::warn(&format!("provider setup failed, using fallback: {err}"));
-                fallback_message(&diff_files, &config)
-            }
+    let provider = match build_provider(&config) {
+        Ok(provider) => Some(provider),
+        Err(err) => {
+            ui::warn(&format!("provider setup failed, using fallback: {err}"));
+            None
         }
     };
 
-    let fallback = fallback_message(&diff_files, &config);
-    let cleaned = sanitize_message(&message, &config, &fallback);
+    let pipeline_result =
+        generate_commit_message(&git, provider.as_deref(), &config, &ignore_matcher).await?;
 
+    let outcome = match pipeline_result {
+        PipelineResult::NoChanges => {
+            if git.has_unstaged_changes()? {
+                ui::warn("no staged changes; stage files or use --stage-all");
+            } else {
+                ui::info("working tree clean");
+            }
+            return Ok(());
+        }
+        PipelineResult::Message(outcome) => outcome,
+    };
+
+    for warning in &outcome.warnings {
+        ui::warn(warning);
+    }
+
+    commit_with_message(&git, &config, &cli, &outcome.message)
+}
+
+fn maybe_setup_from_message(cli: &Cli) -> Result<bool> {
+    if cli.message.len() == 2
+        && cli.message[0].eq_ignore_ascii_case("set")
+        && cli.message[1].eq_ignore_ascii_case("up")
+        && is_interactive()
+    {
+        ui::info("did you mean `goodcommit setup`?");
+        let confirm = Confirm::with_theme(&ColorfulTheme::default())
+            .with_prompt("run setup now?")
+            .default(true)
+            .interact()?;
+        if confirm {
+            setup::run_setup()?;
+            ui::success("setup complete");
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
+}
+
+fn commit_with_message(
+    git: &impl GitBackend,
+    config: &EffectiveConfig,
+    cli: &Cli,
+    message: &str,
+) -> Result<()> {
     ui::info("commit message preview:");
-    ui::preview_message(&cleaned);
+    ui::preview_message(message);
 
     if cli.dry_run {
         ui::info("dry run enabled; skipping commit");
@@ -368,13 +437,13 @@ async fn run_commit(cli: Cli) -> Result<()> {
     }
 
     let no_verify = cli.no_verify || cli.skip_verify;
-    let output = git::commit(&cleaned, cli.edit, no_verify).context("git commit failed")?;
+    let output = git.commit(message, cli.edit, no_verify)?;
     if !output.is_empty() {
         ui::info(&output);
     }
 
     if config.push && !cli.no_push {
-        match git::push() {
+        match git.push() {
             Ok(push_output) => {
                 if !push_output.is_empty() {
                     ui::info(&push_output);
@@ -390,8 +459,9 @@ async fn run_commit(cli: Cli) -> Result<()> {
 }
 
 async fn run_hook(path: PathBuf, source: Option<String>, cli: Cli) -> Result<()> {
-    git::ensure_git_repo()?;
-    let repo_root = git::repo_root()?;
+    let git = SystemGit::new();
+    git.ensure_git_repo()?;
+    let repo_root = git.repo_root()?;
     let (mut config, paths) = config_for_repo(&cli, Some(&repo_root))?;
 
     config.confirm = false;
@@ -415,30 +485,20 @@ async fn run_hook(path: PathBuf, source: Option<String>, cli: Cli) -> Result<()>
     }
 
     let ignore_matcher = build_ignore_matcher(&config.ignore, &paths)?;
-    let raw_diff = git::staged_diff()?;
-    if raw_diff.trim().is_empty() {
-        return Ok(());
-    }
-
-    let diff_files = filter_diff_files(parse_diff(&raw_diff), &ignore_matcher);
-    let diff_for_prompt = diff_files_to_string(&diff_files);
-    if diff_for_prompt.trim().is_empty() {
-        return Ok(());
-    }
-
     let provider = match build_provider(&config) {
-        Ok(provider) => provider,
-        Err(_) => return Ok(()),
+        Ok(provider) => Some(provider),
+        Err(_) => None,
     };
-    let message =
-        match generate_commit_message(&*provider, &config, &diff_files, &diff_for_prompt).await {
-            Ok(message) => message,
-            Err(_) => return Ok(()),
-        };
-    let fallback = fallback_message(&diff_files, &config);
-    let cleaned = sanitize_message(&message, &config, &fallback);
 
-    hooks::write_hook_message(&path, &cleaned)?;
+    let pipeline_result =
+        generate_commit_message(&git, provider.as_deref(), &config, &ignore_matcher).await?;
+
+    let outcome = match pipeline_result {
+        PipelineResult::NoChanges => return Ok(()),
+        PipelineResult::Message(outcome) => outcome,
+    };
+
+    hooks::write_hook_message(&path, &outcome.message)?;
     Ok(())
 }
 
@@ -467,141 +527,9 @@ fn maybe_prompt_setup(cli: &Cli, repo_root: Option<&std::path::Path>) -> Result<
     Ok(())
 }
 
-async fn generate_commit_message(
-    provider: &dyn Provider,
-    config: &EffectiveConfig,
-    diff_files: &[DiffFile],
-    diff_for_prompt: &str,
-) -> Result<String> {
-    let diff_tokens = estimate_tokens(diff_for_prompt);
-    if diff_tokens <= config.max_input_tokens as usize {
-        let system_prompt = commit_system_prompt(config);
-        let user_prompt = commit_user_prompt(diff_for_prompt, config);
-        let request = ProviderRequest {
-            max_output_tokens: config.max_output_tokens,
-            temperature: config.temperature,
-        };
-        return provider
-            .complete(&system_prompt, &user_prompt, request)
-            .await;
-    }
-
-    summarize_then_commit(provider, config, diff_files).await
-}
-
-async fn summarize_then_commit(
-    provider: &dyn Provider,
-    config: &EffectiveConfig,
-    diff_files: &[DiffFile],
-) -> Result<String> {
-    let max_files = 40usize;
-    let max_file_tokens = std::cmp::min(config.max_input_tokens as usize, 2000);
-    let summary_tokens = std::cmp::min(config.max_output_tokens, 120);
-
-    let mut summaries = Vec::new();
-    for file in diff_files.iter().take(max_files) {
-        let truncated = truncate_to_tokens(&file.content, max_file_tokens);
-        if truncated.trim().is_empty() {
-            continue;
-        }
-        let system_prompt = summary_system_prompt();
-        let user_prompt = summary_user_prompt(&file.path, &truncated);
-        let request = ProviderRequest {
-            max_output_tokens: summary_tokens,
-            temperature: config.temperature,
-        };
-        let summary = provider
-            .complete(&system_prompt, &user_prompt, request)
-            .await?;
-        summaries.push(format!("{}: {}", file.path, summary.trim()));
-    }
-
-    if summaries.is_empty() {
-        return Ok(fallback_message(diff_files, config));
-    }
-
-    let mut combined = summaries.join("\n");
-    let combined_tokens = estimate_tokens(&combined);
-    if combined_tokens > config.max_input_tokens as usize {
-        combined = truncate_to_tokens(&combined, config.max_input_tokens as usize);
-    }
-
-    let system_prompt = commit_system_prompt(config);
-    let user_prompt = commit_user_prompt(&combined, config);
-    let request = ProviderRequest {
-        max_output_tokens: config.max_output_tokens,
-        temperature: config.temperature,
-    };
-
-    provider
-        .complete(&system_prompt, &user_prompt, request)
-        .await
-}
-
-fn sanitize_message(raw: &str, config: &EffectiveConfig, fallback: &str) -> String {
-    let cleaned = trim_quotes(raw);
-    let mut message = cleaned.trim().to_string();
-
-    if config.one_line {
-        message = message.lines().next().unwrap_or("").trim().to_string();
-    }
-
-    message = message.replace("```", "").replace('`', "");
-
-    if config.conventional {
-        let re = conventional_regex();
-        let first_line = message.lines().next().unwrap_or("").trim();
-        if !re.is_match(first_line) {
-            if let Some(found) = cleaned.lines().find(|line| re.is_match(line.trim())) {
-                message = found.trim().to_string();
-            } else {
-                message = fallback.to_string();
-            }
-        }
-    }
-
-    if message.is_empty() {
-        fallback.to_string()
-    } else {
-        message
-    }
-}
-
-fn conventional_regex() -> &'static Regex {
-    use once_cell::sync::Lazy;
-    static RE: Lazy<Regex> = Lazy::new(|| {
-        Regex::new(r"^(feat|fix|build|chore|ci|docs|style|refactor|perf|test)(\([\w./-]+\))?: .+")
-            .expect("invalid regex")
-    });
-    &RE
-}
-
-fn fallback_message(diff_files: &[DiffFile], config: &EffectiveConfig) -> String {
-    let paths: Vec<String> = diff_files
-        .iter()
-        .map(|file| file.path.clone())
-        .take(3)
-        .collect();
-
-    let mut subject = if paths.is_empty() {
-        "update files".to_string()
-    } else {
-        format!("update {}", paths.join(", "))
-    };
-
-    if subject.len() > 50 {
-        subject.truncate(50);
-    }
-
-    if config.conventional {
-        format!("chore: {subject}")
-    } else {
-        subject
-    }
-}
-
 fn run_config(cli: &Cli) -> Result<()> {
-    let repo_root = git::repo_root().ok();
+    let git = SystemGit::new();
+    let repo_root = git.repo_root().ok();
     let (config, paths) = config_for_repo(cli, repo_root.as_deref())?;
 
     if let Some(global) = paths.global_config {
@@ -635,7 +563,8 @@ fn run_config(cli: &Cli) -> Result<()> {
 }
 
 fn run_doctor(cli: &Cli) -> Result<()> {
-    let repo_root = git::repo_root().ok();
+    let git = SystemGit::new();
+    let repo_root = git.repo_root().ok();
     let (config, _paths) = config_for_repo(cli, repo_root.as_deref())?;
 
     let git_version = std::process::Command::new("git")
@@ -654,7 +583,9 @@ fn run_doctor(cli: &Cli) -> Result<()> {
             if config.openai_api_key.is_some() {
                 ui::info("openai api key: detected");
             } else {
-                ui::warn("openai api key: missing (run setup or set OPENAI_API_KEY or GOODCOMMIT_OPENAI_API_KEY)");
+                ui::warn(
+                    "openai api key: missing (run setup or set OPENAI_API_KEY or GOODCOMMIT_OPENAI_API_KEY)",
+                );
             }
         }
         ProviderKind::Ollama => {

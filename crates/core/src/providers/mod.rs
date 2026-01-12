@@ -1,7 +1,7 @@
-use anyhow::Result;
 use async_trait::async_trait;
 
 use crate::config::{EffectiveConfig, OpenAiMode, ProviderKind};
+use crate::error::CoreResult;
 
 mod ollama;
 mod openai;
@@ -22,10 +22,10 @@ pub trait Provider: Send + Sync {
         system_prompt: &str,
         user_prompt: &str,
         request: ProviderRequest,
-    ) -> Result<String>;
+    ) -> CoreResult<String>;
 }
 
-pub fn build_provider(config: &EffectiveConfig) -> Result<Box<dyn Provider>> {
+pub fn build_provider(config: &EffectiveConfig) -> CoreResult<Box<dyn Provider>> {
     match config.provider {
         ProviderKind::OpenAi => Ok(Box::new(OpenAiProvider::new(
             config.model.clone(),

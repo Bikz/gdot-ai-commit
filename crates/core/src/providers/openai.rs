@@ -1,12 +1,12 @@
 use std::time::Duration;
 
-use anyhow::{anyhow, Context, Result};
-use rand::{thread_rng, Rng};
 use reqwest::StatusCode;
 use serde_json::Value;
 
 use crate::config::{openai_api_key_env, OpenAiMode};
+use crate::error::{CoreError, CoreResult};
 use crate::providers::{openai_mode_for, Provider, ProviderRequest};
+use crate::retry::sleep_with_jitter;
 
 pub struct OpenAiProvider {
     client: reqwest::Client,
@@ -23,14 +23,16 @@ impl OpenAiProvider {
         mode: OpenAiMode,
         timeout_secs: u64,
         api_key: Option<String>,
-    ) -> Result<Self> {
+    ) -> CoreResult<Self> {
         let api_key = api_key.or_else(openai_api_key_env).ok_or_else(|| {
-            anyhow!("OpenAI API key is missing (run setup or set OPENAI_API_KEY)")
+            CoreError::Provider(
+                "OpenAI API key is missing (run setup or set OPENAI_API_KEY)".to_string(),
+            )
         })?;
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(timeout_secs))
-            .build()
-            .context("failed to build http client")?;
+            .connect_timeout(Duration::from_secs(timeout_secs))
+            .build()?;
 
         Ok(Self {
             client,
@@ -49,44 +51,45 @@ impl OpenAiProvider {
         format!("{}/chat/completions", self.base_url.trim_end_matches('/'))
     }
 
-    async fn send_with_retries(&self, request: reqwest::RequestBuilder) -> Result<Value> {
-        let mut attempt = 0;
-        let max_attempts = 3;
+    async fn send_with_retries(&self, request: reqwest::RequestBuilder) -> CoreResult<Value> {
+        let mut attempt = 0usize;
+        let max_attempts = 3usize;
         let mut last_error = None;
 
         while attempt < max_attempts {
             let response = request
                 .try_clone()
-                .ok_or_else(|| anyhow!("failed to clone request"))?
+                .ok_or_else(|| CoreError::Provider("failed to clone request".to_string()))?
                 .send()
                 .await;
 
             match response {
                 Ok(resp) => {
                     if resp.status().is_success() {
-                        return resp.json::<Value>().await.context("invalid json response");
+                        return resp.json::<Value>().await.map_err(CoreError::from);
                     }
 
                     let status = resp.status();
                     let body = resp.text().await.unwrap_or_default();
+                    let err = CoreError::Provider(format!("openai error {status}: {body}"));
                     if should_retry(status) {
-                        last_error = Some(anyhow!("openai error {status}: {body}"));
-                        sleep_jitter(attempt).await;
+                        last_error = Some(err);
+                        sleep_with_jitter(attempt, 200, 2000).await;
                         attempt += 1;
                         continue;
                     }
 
-                    return Err(anyhow!("openai error {status}: {body}"));
+                    return Err(err);
                 }
                 Err(err) => {
-                    last_error = Some(anyhow!("openai request failed: {err}"));
-                    sleep_jitter(attempt).await;
+                    last_error = Some(CoreError::Provider(format!("openai request failed: {err}")));
+                    sleep_with_jitter(attempt, 200, 2000).await;
                     attempt += 1;
                 }
             }
         }
 
-        Err(last_error.unwrap_or_else(|| anyhow!("openai request failed")))
+        Err(last_error.unwrap_or_else(|| CoreError::Provider("openai request failed".to_string())))
     }
 
     async fn complete_responses(
@@ -94,7 +97,7 @@ impl OpenAiProvider {
         system_prompt: &str,
         user_prompt: &str,
         request: ProviderRequest,
-    ) -> Result<String> {
+    ) -> CoreResult<String> {
         let base = self.responses_base_payload(system_prompt, user_prompt, request.temperature);
 
         match self
@@ -103,10 +106,7 @@ impl OpenAiProvider {
         {
             Ok(message) => Ok(message),
             Err(err) => {
-                let message = err.to_string();
-                if message.contains("unsupported_parameter")
-                    && message.contains("max_output_tokens")
-                {
+                if is_unsupported_param(&err, "max_output_tokens") {
                     return self
                         .complete_responses_with_param(
                             &base,
@@ -125,7 +125,7 @@ impl OpenAiProvider {
         system_prompt: &str,
         user_prompt: &str,
         request: ProviderRequest,
-    ) -> Result<String> {
+    ) -> CoreResult<String> {
         let body = serde_json::json!({
             "model": self.model,
             "messages": [
@@ -173,7 +173,7 @@ impl OpenAiProvider {
         base: &Value,
         param: &str,
         max_tokens: u32,
-    ) -> Result<String> {
+    ) -> CoreResult<String> {
         let mut body = base.clone();
         if let Some(obj) = body.as_object_mut() {
             obj.insert(param.to_string(), serde_json::json!(max_tokens));
@@ -197,7 +197,7 @@ impl Provider for OpenAiProvider {
         system_prompt: &str,
         user_prompt: &str,
         request: ProviderRequest,
-    ) -> Result<String> {
+    ) -> CoreResult<String> {
         let mode = openai_mode_for(&self.model, self.mode);
         let request = ProviderRequest {
             max_output_tokens: request.max_output_tokens,
@@ -218,7 +218,7 @@ impl Provider for OpenAiProvider {
     }
 }
 
-fn parse_responses_output(json: &Value) -> Result<String> {
+fn parse_responses_output(json: &Value) -> CoreResult<String> {
     if let Some(text) = json.get("output_text").and_then(|v| v.as_str()) {
         if !text.trim().is_empty() {
             return Ok(text.trim().to_string());
@@ -243,10 +243,12 @@ fn parse_responses_output(json: &Value) -> Result<String> {
         }
     }
 
-    Err(anyhow!("openai response missing output text"))
+    Err(CoreError::Provider(
+        "openai response missing output text".to_string(),
+    ))
 }
 
-fn parse_chat_output(json: &Value) -> Result<String> {
+fn parse_chat_output(json: &Value) -> CoreResult<String> {
     json.get("choices")
         .and_then(|choices| choices.get(0))
         .and_then(|choice| choice.get("message"))
@@ -254,7 +256,7 @@ fn parse_chat_output(json: &Value) -> Result<String> {
         .and_then(|content| content.as_str())
         .map(|text| text.trim().to_string())
         .filter(|text| !text.is_empty())
-        .ok_or_else(|| anyhow!("openai response missing content"))
+        .ok_or_else(|| CoreError::Provider("openai response missing content".to_string()))
 }
 
 fn should_retry(status: StatusCode) -> bool {
@@ -263,9 +265,7 @@ fn should_retry(status: StatusCode) -> bool {
         || status == StatusCode::REQUEST_TIMEOUT
 }
 
-async fn sleep_jitter(attempt: usize) {
-    let jitter: u64 = thread_rng().gen_range(100..400);
-    let backoff = 200_u64.saturating_mul(2_u64.pow(attempt as u32));
-    let delay = backoff + jitter;
-    tokio::time::sleep(Duration::from_millis(delay)).await;
+fn is_unsupported_param(err: &CoreError, param: &str) -> bool {
+    let message = err.to_string();
+    message.contains("unsupported_parameter") && message.contains(param)
 }

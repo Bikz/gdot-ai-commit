@@ -3,12 +3,12 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 
-use crate::git;
+use goodcommit_core::git::GitBackend;
 
 const HOOK_NAME: &str = "prepare-commit-msg";
 
-pub fn install_hook() -> Result<()> {
-    let git_dir = git::git_dir()?;
+pub fn install_hook(git: &impl GitBackend) -> Result<()> {
+    let git_dir = git.git_dir()?;
     let hooks_dir = git_dir.join("hooks");
     fs::create_dir_all(&hooks_dir).context("failed to create hooks directory")?;
 
@@ -27,8 +27,8 @@ pub fn install_hook() -> Result<()> {
     Ok(())
 }
 
-pub fn uninstall_hook() -> Result<()> {
-    let git_dir = git::git_dir()?;
+pub fn uninstall_hook(git: &impl GitBackend) -> Result<()> {
+    let git_dir = git.git_dir()?;
     let hook_path = git_dir.join("hooks").join(HOOK_NAME);
     if hook_path.exists() {
         fs::remove_file(hook_path).context("failed to remove hook")?;
