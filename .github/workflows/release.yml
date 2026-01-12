@@ -63,9 +63,25 @@ jobs:
             sha256sum "$ARTIFACT" > "$OUT"
           fi
 
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.target }}
+          path: |
+            goodcommit-${{ matrix.target }}.tar.gz
+            checksums-${{ matrix.target }}.txt
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+          pattern: release-*
+
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            goodcommit-${{ matrix.target }}.tar.gz
-            checksums-${{ matrix.target }}.txt
+          files: dist/*
