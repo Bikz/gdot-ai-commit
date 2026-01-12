@@ -31,7 +31,7 @@ cp "$FORMULA_SRC" "$TAP_DIR/Formula/goodcommit.rb"
 rm -f "$TAP_DIR/Formula/git-ai-commit.rb"
 
 cd "$TAP_DIR"
-git add Formula/goodcommit.rb Formula/git-ai-commit.rb
+git add -A Formula
 
 if git diff --cached --quiet; then
   echo "No changes to publish."
