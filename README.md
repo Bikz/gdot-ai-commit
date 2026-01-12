@@ -28,6 +28,8 @@ To publish the formula to your tap repo:
 scripts/publish-brew.sh
 ```
 
+To publish automatically on releases, add a `BREW_TAP_TOKEN` secret with access to `Bikz/homebrew-tap`.
+
 ### npm
 
 ```bash
