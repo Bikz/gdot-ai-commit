@@ -1,15 +1,16 @@
 # Good Commit (goodcommit, g, g.)
 
-Fast, friendly AI commit messages in one command. Built in Rust for speed and reliability, `goodcommit` stages changes (configurable), generates a commit message, commits, and can optionally push. Works with OpenAI (including GPT‑5) or local Ollama, and stays safe on large diffs with smart fallbacks.
+Good Commit is a fast Rust CLI that writes git commit messages with AI. It stages changes (optional), generates a message, shows a preview, commits, and can push. Use OpenAI (including GPT-5) or local Ollama, with safe handling for large diffs.
 
-Keywords: git ai commit, ai commit tool, opencommit alternative.
+Keywords: git ai commit, commit message generator, OpenCommit alternative, conventional commits.
 
-## Highlights
+## Why Good Commit
 
 - One command: `g` or `g.` to stage, generate, commit, and push (optional).
-- GPT‑5 + Ollama support: cloud or local, your choice.
+- Fast and lightweight: Rust, single binary, no runtime.
+- GPT-5 + Ollama support: cloud or local.
 - Large diff safe: summarization fallback prevents token blowups.
-- Conventional commits by default, with quick override flags.
+- Conventional commits by default, with quick overrides.
 
 ## Install
 
@@ -32,13 +33,14 @@ npm install -g goodcommit
 curl -s https://raw.githubusercontent.com/Bikz/goodcommit/main/install.sh | sh
 ```
 
-## Setup
+## Quick Start
 
 ```bash
 goodcommit setup
+g
 ```
 
-Setup asks for your provider, default push behavior, and (if OpenAI) your API key. You can also set `OPENAI_API_KEY` instead of storing it in config. Create a key at:
+Setup asks for your provider, default push behavior, and (if OpenAI) your API key. You can also set `OPENAI_API_KEY` or `GOODCOMMIT_OPENAI_API_KEY` instead of storing it in config. Create a key at:
 https://platform.openai.com/api-keys
 
 ## Usage
