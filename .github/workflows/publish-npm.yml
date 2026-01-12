@@ -1,8 +1,14 @@
 name: publish-npm
 
 on:
-  release:
-    types: [published]
+  workflow_run:
+    workflows: ["release"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish (e.g. v0.1.5)"
+        required: true
 
 permissions:
   contents: read
@@ -10,6 +16,7 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -18,10 +25,29 @@ jobs:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
 
-      - name: Verify version matches release tag
+      - name: Resolve tag
+        id: resolve
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            tag="${{ inputs.tag }}"
+          else
+            git fetch --tags --force
+            sha="${{ github.event.workflow_run.head_sha }}"
+            tag=$(git tag --points-at "$sha" | head -n 1)
+          fi
+
+          if [ -z "$tag" ]; then
+            echo "Unable to resolve tag for npm publish"
+            exit 1
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Verify version matches tag
         run: |
           pkg_version=$(node -p "require('./npm/package.json').version")
-          tag_version="${GITHUB_REF_NAME#v}"
+          tag_version="${{ steps.resolve.outputs.tag }}"
+          tag_version="${tag_version#v}"
           if [ "$pkg_version" != "$tag_version" ]; then
             echo "npm/package.json version ($pkg_version) does not match tag ($tag_version)"
             exit 1
