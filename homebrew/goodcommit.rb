@@ -6,10 +6,10 @@ class Goodcommit < Formula
   on_macos do
     if Hardware::CPU.arm?
       url "https://github.com/Bikz/goodcommit/releases/download/v0.2.2/goodcommit-aarch64-apple-darwin.tar.gz"
-      sha256 "REPLACE_ME"
+      sha256 "a27045276a4f2a8745d8cce5b27acab17564c151ecd9af56b03509a38674e911"
     else
       url "https://github.com/Bikz/goodcommit/releases/download/v0.2.2/goodcommit-x86_64-apple-darwin.tar.gz"
-      sha256 "REPLACE_ME"
+      sha256 "62286bda84b90e16a475692f54f2e830306210eaad3fffa69baab42c740daeef"
     end
   end
 
@@ -19,7 +19,7 @@ class Goodcommit < Formula
     end
 
     url "https://github.com/Bikz/goodcommit/releases/download/v0.2.2/goodcommit-x86_64-unknown-linux-gnu.tar.gz"
-    sha256 "REPLACE_ME"
+    sha256 "f9960b4bed7f5b9646d3e638e81d0469df5a7e2f9e66ecb0ae40da465ab85322"
   end
 
   def install
