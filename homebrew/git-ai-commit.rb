@@ -28,6 +28,17 @@ class GitAiCommit < Formula
     bin.install_symlink "git-ai-commit" => "g."
   end
 
+  def caveats
+    <<~EOS
+      Next steps:
+        git-ai-commit setup
+
+      Commands:
+        g
+        g.
+    EOS
+  end
+
   test do
     assert_match "git-ai-commit", shell_output("#{bin}/git-ai-commit --help")
   end

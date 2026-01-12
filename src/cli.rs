@@ -285,6 +285,7 @@ fn config_for_repo(
 async fn run_commit(cli: Cli) -> Result<()> {
     git::ensure_git_repo()?;
     let repo_root = git::repo_root()?;
+    maybe_prompt_setup(&cli, Some(&repo_root))?;
     let (config, paths) = config_for_repo(&cli, Some(&repo_root))?;
 
     let ignore_matcher = build_ignore_matcher(&config.ignore, &paths)?;
@@ -438,6 +439,31 @@ async fn run_hook(path: PathBuf, source: Option<String>, cli: Cli) -> Result<()>
     let cleaned = sanitize_message(&message, &config, &fallback);
 
     hooks::write_hook_message(&path, &cleaned)?;
+    Ok(())
+}
+
+fn maybe_prompt_setup(cli: &Cli, repo_root: Option<&std::path::Path>) -> Result<()> {
+    if !is_interactive() || cli.yes {
+        return Ok(());
+    }
+
+    let paths = resolve_paths(repo_root)?;
+    let has_config = paths.global_config.is_some() || paths.repo_config.is_some();
+    if has_config {
+        return Ok(());
+    }
+
+    ui::info("no config found; run guided setup to choose provider and push defaults");
+    let confirm = Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt("run setup now?")
+        .default(true)
+        .interact()?;
+
+    if confirm {
+        setup::run_setup()?;
+        ui::success("setup complete");
+    }
+
     Ok(())
 }
 
