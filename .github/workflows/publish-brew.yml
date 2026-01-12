@@ -34,10 +34,11 @@ jobs:
         run: |
           version="${VERSION#v}"
           cp homebrew/goodcommit.rb tap/Formula/goodcommit.rb
+          rm -f tap/Formula/git-ai-commit.rb
           cd tap
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Formula/goodcommit.rb
+          git add Formula/goodcommit.rb Formula/git-ai-commit.rb
           if git diff --cached --quiet; then
             echo "No changes to publish"
             exit 0

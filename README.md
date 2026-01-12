@@ -67,7 +67,6 @@ Config precedence: CLI flags > repo config > global config > env > defaults.
 Config files:
 - Global: `~/.config/goodcommit/config.toml`
 - Repo: `.goodcommit.toml`
-Legacy `git-ai-commit` config/ignore files are still read.
 
 Example:
 

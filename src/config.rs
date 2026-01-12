@@ -231,83 +231,40 @@ pub struct ConfigPaths {
     pub repo_ignore: Option<PathBuf>,
 }
 
-fn config_dir_named(name: &str) -> Option<PathBuf> {
+pub fn config_dir() -> Result<PathBuf> {
     if let Ok(home) = env::var("HOME") {
-        return Some(PathBuf::from(home).join(".config").join(name));
+        return Ok(PathBuf::from(home).join(".config").join("goodcommit"));
     }
 
     if let Ok(userprofile) = env::var("USERPROFILE") {
-        return Some(PathBuf::from(userprofile).join(".config").join(name));
+        return Ok(PathBuf::from(userprofile)
+            .join(".config")
+            .join("goodcommit"));
     }
 
-    None
-}
-
-pub fn config_dir() -> Result<PathBuf> {
-    config_dir_named("goodcommit")
-        .ok_or_else(|| anyhow::anyhow!("unable to resolve config directory"))
-}
-
-pub fn legacy_config_dir() -> Option<PathBuf> {
-    config_dir_named("git-ai-commit")
+    Err(anyhow::anyhow!("unable to resolve config directory"))
 }
 
 pub fn resolve_paths(repo_root: Option<&Path>) -> Result<ConfigPaths> {
     let config_dir = config_dir()?;
-    let legacy_dir = legacy_config_dir();
 
     let global_config =
-        find_config_file(&config_dir, &["config.toml", "config.yaml", "config.yml"]).or_else(
-            || {
-                legacy_dir.as_ref().and_then(|dir| {
-                    find_config_file(dir, &["config.toml", "config.yaml", "config.yml"])
-                })
-            },
-        );
+        find_config_file(&config_dir, &["config.toml", "config.yaml", "config.yml"]);
 
     let repo_config = repo_root.and_then(|root| {
         find_config_file(
             root,
-            &[
-                ".goodcommit.toml",
-                ".goodcommit.yaml",
-                ".goodcommit.yml",
-                ".git-ai-commit.toml",
-                ".git-ai-commit.yaml",
-                ".git-ai-commit.yml",
-                ".gdot.toml",
-                ".gdot.yaml",
-                ".gdot.yml",
-            ],
+            &[".goodcommit.toml", ".goodcommit.yaml", ".goodcommit.yml"],
         )
     });
 
-    let global_ignore = {
-        let preferred = config_dir.join("ignore");
-        if preferred.exists() {
-            preferred
-        } else if let Some(legacy) = legacy_dir.as_ref().map(|dir| dir.join("ignore")) {
-            if legacy.exists() {
-                legacy
-            } else {
-                preferred
-            }
-        } else {
-            preferred
-        }
-    };
+    let global_ignore = config_dir.join("ignore");
     let repo_ignore = repo_root.and_then(|root| {
         let path = root.join(".goodcommit-ignore");
         if path.exists() {
             Some(path)
         } else {
-            let legacy = root.join(".git-ai-commit-ignore");
-            if legacy.exists() {
-                Some(legacy)
-            } else {
-                let gdot = root.join(".gdotignore");
-                gdot.exists().then_some(gdot)
-            }
+            None
         }
     });
 
@@ -349,23 +306,23 @@ pub fn read_config_file(path: &Path) -> Result<Config> {
 pub fn config_from_env() -> Config {
     let mut config = Config::default();
 
-    if let Some(value) = env_any(&["GOODCOMMIT_PROVIDER", "GAC_PROVIDER"]) {
+    if let Ok(value) = env::var("GOODCOMMIT_PROVIDER") {
         if let Ok(provider) = value.parse() {
             config.provider = Some(provider);
         }
     }
 
-    if let Some(value) = env_any(&["GOODCOMMIT_MODEL", "GAC_MODEL"]) {
+    if let Ok(value) = env::var("GOODCOMMIT_MODEL") {
         config.model = Some(value);
     }
 
-    if let Some(value) = env_any(&["GOODCOMMIT_OPENAI_MODE", "GAC_OPENAI_MODE"]) {
+    if let Ok(value) = env::var("GOODCOMMIT_OPENAI_MODE") {
         if let Ok(mode) = value.parse() {
             config.openai_mode = Some(mode);
         }
     }
 
-    if let Some(value) = env_any(&["GOODCOMMIT_OPENAI_BASE_URL", "GAC_OPENAI_BASE_URL"]) {
+    if let Ok(value) = env::var("GOODCOMMIT_OPENAI_BASE_URL") {
         config.openai_base_url = Some(value);
     }
 
@@ -373,69 +330,69 @@ pub fn config_from_env() -> Config {
         config.openai_api_key = Some(value);
     }
 
-    if let Some(value) = env_any(&["GOODCOMMIT_OLLAMA_ENDPOINT", "GAC_OLLAMA_ENDPOINT"]) {
+    if let Ok(value) = env::var("GOODCOMMIT_OLLAMA_ENDPOINT") {
         config.ollama_endpoint = Some(value);
     }
 
-    if let Some(value) = env_any(&["GOODCOMMIT_CONVENTIONAL", "GAC_CONVENTIONAL"]) {
+    if let Ok(value) = env::var("GOODCOMMIT_CONVENTIONAL") {
         if let Ok(flag) = parse_bool(&value) {
             config.conventional = Some(flag);
         }
     }
 
-    if let Some(value) = env_any(&["GOODCOMMIT_ONE_LINE", "GAC_ONE_LINE"]) {
+    if let Ok(value) = env::var("GOODCOMMIT_ONE_LINE") {
         if let Ok(flag) = parse_bool(&value) {
             config.one_line = Some(flag);
         }
     }
 
-    if let Some(value) = env_any(&["GOODCOMMIT_EMOJI", "GAC_EMOJI"]) {
+    if let Ok(value) = env::var("GOODCOMMIT_EMOJI") {
         if let Ok(flag) = parse_bool(&value) {
             config.emoji = Some(flag);
         }
     }
 
-    if let Some(value) = env_any(&["GOODCOMMIT_LANG", "GAC_LANG"]) {
+    if let Ok(value) = env::var("GOODCOMMIT_LANG") {
         config.lang = Some(value);
     }
 
-    if let Some(value) = env_any(&["GOODCOMMIT_PUSH", "GAC_PUSH"]) {
+    if let Ok(value) = env::var("GOODCOMMIT_PUSH") {
         if let Ok(flag) = parse_bool(&value) {
             config.push = Some(flag);
         }
     }
 
-    if let Some(value) = env_any(&["GOODCOMMIT_TIMEOUT_SECS", "GAC_TIMEOUT_SECS"]) {
+    if let Ok(value) = env::var("GOODCOMMIT_TIMEOUT_SECS") {
         if let Ok(parsed) = value.parse::<u64>() {
             config.timeout_secs = Some(parsed);
         }
     }
 
-    if let Some(value) = env_any(&["GOODCOMMIT_MAX_INPUT_TOKENS", "GAC_MAX_INPUT_TOKENS"]) {
+    if let Ok(value) = env::var("GOODCOMMIT_MAX_INPUT_TOKENS") {
         if let Ok(parsed) = value.parse::<u32>() {
             config.max_input_tokens = Some(parsed);
         }
     }
 
-    if let Some(value) = env_any(&["GOODCOMMIT_MAX_OUTPUT_TOKENS", "GAC_MAX_OUTPUT_TOKENS"]) {
+    if let Ok(value) = env::var("GOODCOMMIT_MAX_OUTPUT_TOKENS") {
         if let Ok(parsed) = value.parse::<u32>() {
             config.max_output_tokens = Some(parsed);
         }
     }
 
-    if let Some(value) = env_any(&["GOODCOMMIT_STAGE", "GAC_STAGE"]) {
+    if let Ok(value) = env::var("GOODCOMMIT_STAGE") {
         if let Ok(stage) = value.parse() {
             config.stage_mode = Some(stage);
         }
     }
 
-    if let Some(value) = env_any(&["GOODCOMMIT_CONFIRM", "GAC_CONFIRM"]) {
+    if let Ok(value) = env::var("GOODCOMMIT_CONFIRM") {
         if let Ok(flag) = parse_bool(&value) {
             config.confirm = Some(flag);
         }
     }
 
-    if let Some(value) = env_any(&["GOODCOMMIT_TEMPERATURE", "GAC_TEMPERATURE"]) {
+    if let Ok(value) = env::var("GOODCOMMIT_TEMPERATURE") {
         if let Ok(parsed) = value.parse::<f32>() {
             config.temperature = Some(parsed);
         }
@@ -463,11 +420,7 @@ fn find_config_file(base: &Path, candidates: &[&str]) -> Option<PathBuf> {
 }
 
 pub fn openai_api_key_env() -> Option<String> {
-    env_any(&[
-        "GOODCOMMIT_OPENAI_API_KEY",
-        "GAC_OPENAI_API_KEY",
-        "OPENAI_API_KEY",
-    ])
+    env_any(&["GOODCOMMIT_OPENAI_API_KEY", "OPENAI_API_KEY"])
 }
 
 fn env_any(keys: &[&str]) -> Option<String> {

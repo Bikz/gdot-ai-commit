@@ -28,9 +28,10 @@ git clone "$TAP_REMOTE_URL" "$TAP_DIR"
 
 mkdir -p "$TAP_DIR/Formula"
 cp "$FORMULA_SRC" "$TAP_DIR/Formula/goodcommit.rb"
+rm -f "$TAP_DIR/Formula/git-ai-commit.rb"
 
 cd "$TAP_DIR"
-git add Formula/goodcommit.rb
+git add Formula/goodcommit.rb Formula/git-ai-commit.rb
 
 if git diff --cached --quiet; then
   echo "No changes to publish."

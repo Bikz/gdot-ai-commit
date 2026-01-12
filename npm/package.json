@@ -1,6 +1,6 @@
 {
   "name": "goodcommit",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Good Commit: fast, reliable AI commit messages",
   "license": "MIT",
   "repository": {
@@ -19,7 +19,6 @@
     "ollama",
     "gpt-5",
     "opencommit",
-    "git-ai-commit",
     "goodcommit",
     "good-commit"
   ],
