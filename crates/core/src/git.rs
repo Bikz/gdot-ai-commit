@@ -24,10 +24,13 @@ pub trait GitBackend {
     fn git_dir(&self) -> CoreResult<PathBuf>;
     fn stage_all(&self) -> CoreResult<()>;
     fn stage_interactive(&self) -> CoreResult<()>;
+    fn stage_paths(&self, paths: &[String]) -> CoreResult<()>;
+    fn unstage_all(&self) -> CoreResult<()>;
     fn staged_diff(&self) -> CoreResult<String>;
     fn staged_diff_for_path(&self, path: &str, max_bytes: u64) -> CoreResult<GitDiff>;
     fn staged_files(&self) -> CoreResult<Vec<String>>;
     fn staged_numstat(&self) -> CoreResult<Vec<GitFileStat>>;
+    fn working_tree_files(&self) -> CoreResult<Vec<String>>;
     fn has_unstaged_changes(&self) -> CoreResult<bool>;
     fn commit(&self, message: &str, edit: bool, no_verify: bool) -> CoreResult<String>;
     fn push(&self) -> CoreResult<String>;
@@ -84,6 +87,26 @@ impl GitBackend for SystemGit {
     fn stage_interactive(&self) -> CoreResult<()> {
         run_git_status_stream(["add", "-p"])
             .map_err(|err| CoreError::Git(format!("interactive staging failed: {err}")))
+    }
+
+    fn stage_paths(&self, paths: &[String]) -> CoreResult<()> {
+        if paths.is_empty() {
+            return Ok(());
+        }
+
+        let mut args: Vec<std::ffi::OsString> = Vec::with_capacity(paths.len() + 2);
+        args.push("add".into());
+        args.push("--".into());
+        for path in paths {
+            args.push(path.into());
+        }
+
+        run_git_status(args).map_err(|err| CoreError::Git(format!("failed to stage files: {err}")))
+    }
+
+    fn unstage_all(&self) -> CoreResult<()> {
+        run_git_status(["reset", "-q"])
+            .map_err(|err| CoreError::Git(format!("failed to unstage files: {err}")))
     }
 
     fn staged_diff(&self) -> CoreResult<String> {
@@ -146,6 +169,32 @@ impl GitBackend for SystemGit {
         }
 
         Ok(stats)
+    }
+
+    fn working_tree_files(&self) -> CoreResult<Vec<String>> {
+        let mut files = Vec::new();
+
+        let output = run_git(["diff", "--name-only", "--"])?;
+        let stdout = String::from_utf8(output.stdout)?;
+        for line in stdout.lines() {
+            let trimmed = line.trim();
+            if !trimmed.is_empty() {
+                files.push(trimmed.to_string());
+            }
+        }
+
+        let output = run_git(["ls-files", "-o", "--exclude-standard"])?;
+        let stdout = String::from_utf8(output.stdout)?;
+        for line in stdout.lines() {
+            let trimmed = line.trim();
+            if !trimmed.is_empty() {
+                files.push(trimmed.to_string());
+            }
+        }
+
+        files.sort();
+        files.dedup();
+        Ok(files)
     }
 
     fn has_unstaged_changes(&self) -> CoreResult<bool> {

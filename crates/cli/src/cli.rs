@@ -2,11 +2,12 @@ use std::path::PathBuf;
 
 use anyhow::{anyhow, Result};
 use clap::{ArgAction, Parser, Subcommand};
-use dialoguer::{theme::ColorfulTheme, Confirm};
+use dialoguer::{theme::ColorfulTheme, Confirm, MultiSelect};
 use tracing_subscriber::EnvFilter;
 
 use goodcommit_core::config::{
-    config_from_env, load_config, resolve_paths, Config, EffectiveConfig, ProviderKind, StageMode,
+    config_dir, config_from_env, load_config, resolve_paths, Config, EffectiveConfig, ProviderKind,
+    StageMode,
 };
 use goodcommit_core::git::{GitBackend, SystemGit};
 use goodcommit_core::ignore::build_ignore_matcher;
@@ -109,6 +110,7 @@ enum Commands {
     Doctor,
     #[command(alias = "init")]
     Setup,
+    Split,
     Hook {
         #[command(subcommand)]
         action: HookAction,
@@ -145,6 +147,10 @@ pub async fn run() -> Result<()> {
         }
         Some(Commands::Doctor) => {
             run_doctor(&cli)?;
+            return Ok(());
+        }
+        Some(Commands::Split) => {
+            run_split(cli).await?;
             return Ok(());
         }
         Some(Commands::Hook { action }) => match action {
@@ -364,6 +370,7 @@ async fn run_commit(cli: Cli) -> Result<()> {
         Ok(provider) => Some(provider),
         Err(err) => {
             ui::warn(&format!("provider setup failed, using fallback: {err}"));
+            print_provider_help(&config);
             None
         }
     };
@@ -386,8 +393,108 @@ async fn run_commit(cli: Cli) -> Result<()> {
     for warning in &outcome.warnings {
         ui::warn(warning);
     }
+    if has_provider_warning(&outcome.warnings) {
+        print_provider_help(&config);
+    }
 
     commit_with_message(&git, &config, &cli, &outcome.message)
+}
+
+async fn run_split(cli: Cli) -> Result<()> {
+    if !is_interactive() {
+        return Err(anyhow!("split requires an interactive terminal"));
+    }
+
+    let git = SystemGit::new();
+    git.ensure_git_repo()?;
+    let repo_root = git.repo_root()?;
+    maybe_prompt_setup(&cli, Some(&repo_root))?;
+    let (mut config, paths) = config_for_repo(&cli, Some(&repo_root))?;
+    config.stage_mode = StageMode::None;
+
+    let staged = git.staged_files()?;
+    if !staged.is_empty() {
+        ui::warn("staged changes detected");
+        let confirm = Confirm::with_theme(&ColorfulTheme::default())
+            .with_prompt("unstage all and continue with split?")
+            .default(false)
+            .interact()?;
+        if !confirm {
+            ui::info("split canceled");
+            return Ok(());
+        }
+        git.unstage_all()?;
+    }
+
+    let ignore_matcher = build_ignore_matcher(&config.ignore, &paths)?;
+
+    let provider = match build_provider(&config) {
+        Ok(provider) => Some(provider),
+        Err(err) => {
+            ui::warn(&format!("provider setup failed, using fallback: {err}"));
+            print_provider_help(&config);
+            None
+        }
+    };
+
+    loop {
+        let mut remaining = git.working_tree_files()?;
+        if remaining.is_empty() {
+            ui::info("working tree clean");
+            return Ok(());
+        }
+        remaining.sort();
+
+        let selections = MultiSelect::with_theme(&ColorfulTheme::default())
+            .with_prompt("Select files for next commit (space to select)")
+            .items(&remaining)
+            .interact()?;
+
+        if selections.is_empty() {
+            let done = Confirm::with_theme(&ColorfulTheme::default())
+                .with_prompt("no files selected; finish split?")
+                .default(true)
+                .interact()?;
+            if done {
+                ui::info("split complete");
+                return Ok(());
+            }
+            continue;
+        }
+
+        let chosen: Vec<String> = selections
+            .iter()
+            .map(|index| remaining[*index].clone())
+            .collect();
+
+        git.stage_paths(&chosen)?;
+
+        let pipeline_result =
+            generate_commit_message(&git, provider.as_deref(), &config, &ignore_matcher).await?;
+
+        let outcome = match pipeline_result {
+            PipelineResult::NoChanges => {
+                ui::warn("no staged diff for selection");
+                git.unstage_all()?;
+                continue;
+            }
+            PipelineResult::Message(outcome) => outcome,
+        };
+
+        for warning in &outcome.warnings {
+            ui::warn(warning);
+        }
+        if has_provider_warning(&outcome.warnings) {
+            print_provider_help(&config);
+        }
+
+        commit_with_message(&git, &config, &cli, &outcome.message)?;
+        git.unstage_all()?;
+
+        if cli.dry_run {
+            return Ok(());
+        }
+    }
 }
 
 fn maybe_setup_from_message(cli: &Cli) -> Result<bool> {
@@ -456,6 +563,30 @@ fn commit_with_message(
     }
 
     Ok(())
+}
+
+fn has_provider_warning(warnings: &[String]) -> bool {
+    warnings
+        .iter()
+        .any(|warning| warning.contains("ai generation failed") || warning.contains("provider"))
+}
+
+fn print_provider_help(config: &EffectiveConfig) {
+    match config.provider {
+        ProviderKind::OpenAi => {
+            ui::info("fix: set OPENAI_API_KEY or GOODCOMMIT_OPENAI_API_KEY");
+            ui::info("or run `goodcommit setup` to store a key or switch providers");
+            if let Ok(dir) = config_dir() {
+                let path = dir.join("config.toml");
+                ui::info(&format!("config file: {}", path.display()));
+            }
+        }
+        ProviderKind::Ollama => {
+            ui::info("fix: install and run ollama (https://ollama.com)");
+            ui::info("start it with: ollama serve");
+            ui::info("or run `goodcommit setup` to switch providers");
+        }
+    }
 }
 
 async fn run_hook(path: PathBuf, source: Option<String>, cli: Cli) -> Result<()> {
