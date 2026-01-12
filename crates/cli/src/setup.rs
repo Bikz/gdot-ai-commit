@@ -1,5 +1,7 @@
 use std::fs;
+use std::io::ErrorKind;
 use std::path::PathBuf;
+use std::process::Command;
 
 use anyhow::{anyhow, Context, Result};
 use dialoguer::{theme::ColorfulTheme, Confirm, Input, Password, Select};
@@ -78,6 +80,10 @@ pub fn run_setup() -> Result<()> {
         .default(default_model.to_string())
         .interact_text()?;
 
+    if provider_kind == ProviderKind::Ollama {
+        check_ollama(&model)?;
+    }
+
     let push = Confirm::with_theme(&theme)
         .with_prompt("Push by default after commit?")
         .default(true)
@@ -112,6 +118,52 @@ fn ensure_ignore_file(path: &PathBuf) -> Result<()> {
     let patterns = default_patterns();
     let content = patterns.join("\n") + "\n";
     fs::write(path, content).context("failed to write ignore file")
+}
+
+fn check_ollama(model: &str) -> Result<()> {
+    let output = match Command::new("ollama").arg("list").output() {
+        Ok(output) => output,
+        Err(err) if err.kind() == ErrorKind::NotFound => {
+            ui::warn("ollama not found");
+            ui::info("install ollama from https://ollama.com");
+            return Ok(());
+        }
+        Err(err) => return Err(err.into()),
+    };
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        ui::warn("ollama is installed but not running");
+        if !stderr.is_empty() {
+            ui::warn(&format!("ollama list failed: {stderr}"));
+        }
+        ui::info("start ollama with: ollama serve");
+        return Ok(());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let models = parse_ollama_models(&stdout);
+    if models.is_empty() {
+        ui::warn("no ollama models installed");
+        ui::info("pull one with: ollama pull <model>");
+        return Ok(());
+    }
+
+    if !models.iter().any(|name| name == model) {
+        ui::warn(&format!("model not found in ollama: {model}"));
+        ui::info(&format!("pull it with: ollama pull {model}"));
+    }
+
+    Ok(())
+}
+
+fn parse_ollama_models(output: &str) -> Vec<String> {
+    output
+        .lines()
+        .filter_map(|line| line.split_whitespace().next())
+        .filter(|name| *name != "NAME")
+        .map(|name| name.to_string())
+        .collect()
 }
 
 #[cfg(unix)]
