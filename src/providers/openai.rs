@@ -92,30 +92,29 @@ impl OpenAiProvider {
         user_prompt: &str,
         request: ProviderRequest,
     ) -> Result<String> {
-        let body = serde_json::json!({
-            "model": self.model,
-            "input": [
+        let base = self.responses_base_payload(system_prompt, user_prompt, request.temperature);
+
+        match self
+            .complete_responses_with_param(&base, "max_output_tokens", request.max_output_tokens)
+            .await
+        {
+            Ok(message) => Ok(message),
+            Err(err) => {
+                let message = err.to_string();
+                if message.contains("unsupported_parameter")
+                    && message.contains("max_output_tokens")
                 {
-                    "role": "system",
-                    "content": [{ "type": "text", "text": system_prompt }]
-                },
-                {
-                    "role": "user",
-                    "content": [{ "type": "text", "text": user_prompt }]
+                    return self
+                        .complete_responses_with_param(
+                            &base,
+                            "max_completion_tokens",
+                            request.max_output_tokens,
+                        )
+                        .await;
                 }
-            ],
-            "max_completion_tokens": request.max_output_tokens,
-            "temperature": request.temperature
-        });
-
-        let request = self
-            .client
-            .post(self.responses_url())
-            .bearer_auth(&self.api_key)
-            .json(&body);
-
-        let json = self.send_with_retries(request).await?;
-        parse_responses_output(&json)
+                Err(err)
+            }
+        }
     }
 
     async fn complete_chat(
@@ -142,6 +141,49 @@ impl OpenAiProvider {
 
         let json = self.send_with_retries(request).await?;
         parse_chat_output(&json)
+    }
+
+    fn responses_base_payload(
+        &self,
+        system_prompt: &str,
+        user_prompt: &str,
+        temperature: f32,
+    ) -> Value {
+        serde_json::json!({
+            "model": self.model,
+            "input": [
+                {
+                    "role": "system",
+                    "content": [{ "type": "text", "text": system_prompt }]
+                },
+                {
+                    "role": "user",
+                    "content": [{ "type": "text", "text": user_prompt }]
+                }
+            ],
+            "temperature": temperature
+        })
+    }
+
+    async fn complete_responses_with_param(
+        &self,
+        base: &Value,
+        param: &str,
+        max_tokens: u32,
+    ) -> Result<String> {
+        let mut body = base.clone();
+        if let Some(obj) = body.as_object_mut() {
+            obj.insert(param.to_string(), serde_json::json!(max_tokens));
+        }
+
+        let request = self
+            .client
+            .post(self.responses_url())
+            .bearer_auth(&self.api_key)
+            .json(&body);
+
+        let json = self.send_with_retries(request).await?;
+        parse_responses_output(&json)
     }
 }
 

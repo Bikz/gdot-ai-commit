@@ -5,7 +5,7 @@ One-command AI commit messages with GPT-5 and Ollama. Fast defaults, conventiona
 ## Highlights
 
 - **One command**: `g` or `g.` stages (configurable), generates, commits, and optionally pushes.
-- **GPT-5 ready**: Uses `max_completion_tokens` with the OpenAI Responses API when needed.
+- **GPT-5 ready**: Uses `max_output_tokens` with the OpenAI Responses API when needed.
 - **Ollama or OpenAI**: Choose local-first or cloud.
 - **Large diff safe**: Map-reduce summaries prevent token blowups.
 - **Config + ignores**: Global + repo config, plus ignore files to control prompt size.
@@ -170,7 +170,7 @@ Set your key:
 export OPENAI_API_KEY="..."
 ```
 
-GPT-5 models automatically use the Responses API and `max_completion_tokens`.
+GPT-5 models automatically use the Responses API and `max_output_tokens`.
 
 ### Ollama
 
