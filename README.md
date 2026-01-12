@@ -60,6 +60,12 @@ g --dry-run
 
 # Interactive staging
 g --interactive
+
+# Local commit only (no push)
+g -l
+
+# Guided split into multiple commits
+goodcommit split
 ```
 
 ## Configuration
