@@ -4,6 +4,10 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v0.2.6)"
+        required: true
 
 permissions:
   contents: read
@@ -14,12 +18,104 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Ensure checksums are set
+      - name: Resolve release tag
+        id: release
         run: |
-          if grep -q "REPLACE_ME" homebrew/goodcommit.rb; then
-            echo "Formula has placeholder checksums; skipping publish."
-            exit 0
+          if [ "${{ github.event_name }}" = "release" ]; then
+            tag="${{ github.event.release.tag_name }}"
+          else
+            tag="${{ github.event.inputs.tag }}"
           fi
+          if [ -z "$tag" ]; then
+            echo "Missing release tag." >&2
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Download checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ steps.release.outputs.tag }}"
+          mkdir -p dist
+          gh release download "$tag" --pattern "checksums-*.txt" --dir dist
+
+      - name: Read checksums
+        id: checksums
+        run: |
+          sha_aarch64=$(awk '$NF=="goodcommit-aarch64-apple-darwin.tar.gz"{print $1}' dist/checksums-aarch64-apple-darwin.txt)
+          sha_x86_64_macos=$(awk '$NF=="goodcommit-x86_64-apple-darwin.tar.gz"{print $1}' dist/checksums-x86_64-apple-darwin.txt)
+          sha_linux=$(awk '$NF=="goodcommit-x86_64-unknown-linux-gnu.tar.gz"{print $1}' dist/checksums-x86_64-unknown-linux-gnu.txt)
+          for name in sha_aarch64 sha_x86_64_macos sha_linux; do
+            if [ -z "${!name}" ]; then
+              echo "Missing checksum: $name" >&2
+              exit 1
+            fi
+          done
+          echo "sha_aarch64=$sha_aarch64" >> "$GITHUB_OUTPUT"
+          echo "sha_x86_64_macos=$sha_x86_64_macos" >> "$GITHUB_OUTPUT"
+          echo "sha_linux=$sha_linux" >> "$GITHUB_OUTPUT"
+
+      - name: Update formula
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          TAG: ${{ steps.release.outputs.tag }}
+          SHA_AARCH64: ${{ steps.checksums.outputs.sha_aarch64 }}
+          SHA_X86_64_MACOS: ${{ steps.checksums.outputs.sha_x86_64_macos }}
+          SHA_LINUX: ${{ steps.checksums.outputs.sha_linux }}
+        run: |
+          python - <<'PY'
+          import os
+          import pathlib
+          import re
+
+          path = pathlib.Path("homebrew/goodcommit.rb")
+          text = path.read_text()
+
+          version = os.environ["VERSION"]
+          tag = os.environ["TAG"]
+          sha_aarch64 = os.environ["SHA_AARCH64"]
+          sha_x86_64_macos = os.environ["SHA_X86_64_MACOS"]
+          sha_linux = os.environ["SHA_LINUX"]
+
+          text = re.sub(r'version "[^"]+"', f'version "{version}"', text)
+          text = re.sub(
+              r'https://github.com/Bikz/goodcommit/releases/download/v[^/]+/goodcommit-aarch64-apple-darwin.tar.gz',
+              f'https://github.com/Bikz/goodcommit/releases/download/{tag}/goodcommit-aarch64-apple-darwin.tar.gz',
+              text,
+          )
+          text = re.sub(
+              r'https://github.com/Bikz/goodcommit/releases/download/v[^/]+/goodcommit-x86_64-apple-darwin.tar.gz',
+              f'https://github.com/Bikz/goodcommit/releases/download/{tag}/goodcommit-x86_64-apple-darwin.tar.gz',
+              text,
+          )
+          text = re.sub(
+              r'https://github.com/Bikz/goodcommit/releases/download/v[^/]+/goodcommit-x86_64-unknown-linux-gnu.tar.gz',
+              f'https://github.com/Bikz/goodcommit/releases/download/{tag}/goodcommit-x86_64-unknown-linux-gnu.tar.gz',
+              text,
+          )
+          text = re.sub(
+              r'(goodcommit-aarch64-apple-darwin.tar.gz"\\n\\s+sha256 ")[^"]+(")',
+              r'\\1' + sha_aarch64 + r'\\2',
+              text,
+          )
+          text = re.sub(
+              r'(goodcommit-x86_64-apple-darwin.tar.gz"\\n\\s+sha256 ")[^"]+(")',
+              r'\\1' + sha_x86_64_macos + r'\\2',
+              text,
+          )
+          text = re.sub(
+              r'(goodcommit-x86_64-unknown-linux-gnu.tar.gz"\\n\\s+sha256 ")[^"]+(")',
+              r'\\1' + sha_linux + r'\\2',
+              text,
+          )
+
+          if "REPLACE_ME" in text:
+              raise SystemExit("Formula still contains REPLACE_ME after update.")
+
+          path.write_text(text)
+          PY
 
       - name: Checkout tap repo
         uses: actions/checkout@v4
@@ -30,7 +126,7 @@ jobs:
 
       - name: Publish formula
         env:
-          VERSION: ${{ github.ref_name }}
+          VERSION: ${{ steps.release.outputs.version }}
         run: |
           version="${VERSION#v}"
           cp homebrew/goodcommit.rb tap/Formula/goodcommit.rb
