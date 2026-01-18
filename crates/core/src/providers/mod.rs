@@ -43,13 +43,55 @@ pub fn build_provider(config: &EffectiveConfig) -> CoreResult<Box<dyn Provider>>
 }
 
 pub fn openai_mode_for(model: &str, mode: OpenAiMode) -> OpenAiMode {
+    let model = model.trim().to_lowercase();
+    if model.starts_with("gpt-5") {
+        return OpenAiMode::Responses;
+    }
+
     if mode != OpenAiMode::Auto {
         return mode;
     }
 
-    if model.to_lowercase().starts_with("gpt-5") {
-        OpenAiMode::Responses
-    } else {
-        OpenAiMode::Chat
+    OpenAiMode::Chat
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn openai_mode_for_gpt5_forces_responses() {
+        assert_eq!(
+            openai_mode_for("gpt-5-nano-2025-08-07", OpenAiMode::Auto),
+            OpenAiMode::Responses
+        );
+        assert_eq!(
+            openai_mode_for("gpt-5-nano-2025-08-07", OpenAiMode::Chat),
+            OpenAiMode::Responses
+        );
+        assert_eq!(
+            openai_mode_for("gpt-5-nano-2025-08-07", OpenAiMode::Responses),
+            OpenAiMode::Responses
+        );
+    }
+
+    #[test]
+    fn openai_mode_for_non_gpt5_respects_overrides() {
+        assert_eq!(
+            openai_mode_for("gpt-4o-mini", OpenAiMode::Chat),
+            OpenAiMode::Chat
+        );
+        assert_eq!(
+            openai_mode_for("gpt-4o-mini", OpenAiMode::Responses),
+            OpenAiMode::Responses
+        );
+    }
+
+    #[test]
+    fn openai_mode_for_non_gpt5_auto_uses_chat() {
+        assert_eq!(
+            openai_mode_for("gpt-4o-mini", OpenAiMode::Auto),
+            OpenAiMode::Chat
+        );
     }
 }

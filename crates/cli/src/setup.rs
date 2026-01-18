@@ -8,7 +8,9 @@ use dialoguer::{theme::ColorfulTheme, Confirm, Input, Password, Select};
 
 use crate::ui;
 use crate::util::is_interactive;
-use goodcommit_core::config::{config_dir, openai_api_key_env, Config, ProviderKind, StageMode};
+use goodcommit_core::config::{
+    config_dir, openai_api_key_env, Config, OpenAiMode, ProviderKind, StageMode,
+};
 use goodcommit_core::ignore::default_patterns;
 
 pub fn run_setup() -> Result<()> {
@@ -84,6 +86,16 @@ pub fn run_setup() -> Result<()> {
         check_ollama(&model)?;
     }
 
+    let openai_mode = if provider_kind == ProviderKind::OpenAi {
+        if model.trim().to_lowercase().starts_with("gpt-5") {
+            Some(OpenAiMode::Responses)
+        } else {
+            Some(OpenAiMode::Auto)
+        }
+    } else {
+        None
+    };
+
     let push = Confirm::with_theme(&theme)
         .with_prompt("Push by default after commit?")
         .default(true)
@@ -92,6 +104,7 @@ pub fn run_setup() -> Result<()> {
     let mut config = Config::default();
     config.provider = Some(provider_kind);
     config.model = Some(model);
+    config.openai_mode = openai_mode;
     config.openai_api_key = openai_key;
     config.push = Some(push);
     config.conventional = Some(true);

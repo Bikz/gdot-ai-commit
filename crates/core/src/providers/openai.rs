@@ -259,6 +259,55 @@ fn parse_chat_output(json: &Value) -> CoreResult<String> {
         .ok_or_else(|| CoreError::Provider("openai response missing content".to_string()))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn responses_payload_uses_input_text_parts() {
+        let provider = OpenAiProvider::new(
+            "gpt-5-nano-2025-08-07".to_string(),
+            "https://api.openai.com/v1".to_string(),
+            OpenAiMode::Responses,
+            5,
+            Some("test-key".to_string()),
+        )
+        .expect("provider");
+
+        let payload = provider.responses_base_payload("system", "user", 0.2);
+        let input = payload
+            .get("input")
+            .and_then(|value| value.as_array())
+            .expect("input array");
+
+        let system = input[0]
+            .get("content")
+            .and_then(|value| value.as_array())
+            .expect("system content");
+        assert_eq!(
+            system[0].get("type").and_then(|value| value.as_str()),
+            Some("input_text")
+        );
+        assert_eq!(
+            system[0].get("text").and_then(|value| value.as_str()),
+            Some("system")
+        );
+
+        let user = input[1]
+            .get("content")
+            .and_then(|value| value.as_array())
+            .expect("user content");
+        assert_eq!(
+            user[0].get("type").and_then(|value| value.as_str()),
+            Some("input_text")
+        );
+        assert_eq!(
+            user[0].get("text").and_then(|value| value.as_str()),
+            Some("user")
+        );
+    }
+}
+
 fn should_retry(status: StatusCode) -> bool {
     matches!(status, StatusCode::TOO_MANY_REQUESTS)
         || status.is_server_error()

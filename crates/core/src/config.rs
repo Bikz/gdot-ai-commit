@@ -159,12 +159,19 @@ impl Config {
     }
 
     pub fn resolve(self) -> CoreResult<EffectiveConfig> {
+        let provider = self.provider.unwrap_or(ProviderKind::Ollama);
+        let model = self
+            .model
+            .unwrap_or_else(|| "qwen2.5-coder:1.5b".to_string());
+        let mut openai_mode = self.openai_mode.unwrap_or(OpenAiMode::Auto);
+        if provider == ProviderKind::OpenAi && model.trim().to_lowercase().starts_with("gpt-5") {
+            openai_mode = OpenAiMode::Responses;
+        }
+
         Ok(EffectiveConfig {
-            provider: self.provider.unwrap_or(ProviderKind::Ollama),
-            model: self
-                .model
-                .unwrap_or_else(|| "qwen2.5-coder:1.5b".to_string()),
-            openai_mode: self.openai_mode.unwrap_or(OpenAiMode::Auto),
+            provider,
+            model,
+            openai_mode,
             openai_base_url: self
                 .openai_base_url
                 .unwrap_or_else(|| "https://api.openai.com/v1".to_string()),
@@ -500,5 +507,18 @@ mod tests {
 
         let merged = base.merge(override_config).resolve().expect("resolve");
         assert!(!merged.push);
+    }
+
+    #[test]
+    fn resolve_forces_responses_for_gpt5_openai() {
+        let config = Config {
+            provider: Some(ProviderKind::OpenAi),
+            model: Some("gpt-5-nano-2025-08-07".to_string()),
+            openai_mode: Some(OpenAiMode::Chat),
+            ..Config::default()
+        };
+
+        let resolved = config.resolve().expect("resolve");
+        assert_eq!(resolved.openai_mode, OpenAiMode::Responses);
     }
 }
