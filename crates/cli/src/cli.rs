@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Result};
 use clap::{ArgAction, Parser, Subcommand};
@@ -317,6 +317,28 @@ fn stage_mode_conflicts(cli: &Cli) -> Result<()> {
     }
 }
 
+fn has_stage_flag(cli: &Cli) -> bool {
+    cli.stage_all || cli.no_stage || cli.interactive
+}
+
+fn stage_mode_for_invocation(invocation: &str) -> Option<StageMode> {
+    let name = Path::new(invocation)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(invocation);
+    match name {
+        "g." => Some(StageMode::All),
+        "g" => Some(StageMode::None),
+        _ => None,
+    }
+}
+
+fn invocation_stage_mode() -> Option<StageMode> {
+    std::env::args()
+        .next()
+        .and_then(|arg0| stage_mode_for_invocation(&arg0))
+}
+
 fn config_for_repo(
     cli: &Cli,
     repo_root: Option<&std::path::Path>,
@@ -326,7 +348,12 @@ fn config_for_repo(
     let paths = resolve_paths(repo_root)?;
     let file_config = load_config(&paths)?;
     let env_config = config_from_env();
-    let cli_config = build_cli_overrides(cli)?;
+    let mut cli_config = build_cli_overrides(cli)?;
+    if !has_stage_flag(cli) {
+        if let Some(stage_mode) = invocation_stage_mode() {
+            cli_config.stage_mode = Some(stage_mode);
+        }
+    }
 
     let config = Config::defaults()
         .merge(env_config)
@@ -725,4 +752,24 @@ fn run_doctor(cli: &Cli) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stage_mode_for_invocation_matches_aliases() {
+        assert_eq!(stage_mode_for_invocation("g"), Some(StageMode::None));
+        assert_eq!(stage_mode_for_invocation("g."), Some(StageMode::All));
+        assert_eq!(
+            stage_mode_for_invocation("/opt/homebrew/bin/g"),
+            Some(StageMode::None)
+        );
+        assert_eq!(
+            stage_mode_for_invocation("/opt/homebrew/bin/g."),
+            Some(StageMode::All)
+        );
+        assert_eq!(stage_mode_for_invocation("goodcommit"), None);
+    }
 }

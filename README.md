@@ -6,7 +6,7 @@ Keywords: git ai commit, commit message generator, OpenCommit alternative, conve
 
 ## Why Good Commit
 
-- One command: `g` or `g.` to stage, generate, commit, and push (optional).
+- `g` commits what's already staged; `g.` stages everything before generating and committing.
 - Fast and lightweight: Rust, single binary, no runtime.
 - GPT-5 + Ollama support: cloud or local.
 - Large diff safe: summarization fallback prevents token blowups.
