@@ -6,11 +6,7 @@ const { spawnSync } = require('child_process');
 const binary = path.join(__dirname, 'native', 'goodcommit');
 
 const args = process.argv.slice(2);
-const stageFlags = new Set(['--stage-all', '--no-stage', '--interactive']);
-const hasStageFlag = args.some((arg) => stageFlags.has(arg));
-const finalArgs = hasStageFlag ? args : ['--no-stage', ...args];
-
-const result = spawnSync(binary, finalArgs, { stdio: 'inherit' });
+const result = spawnSync(binary, args, { stdio: 'inherit' });
 if (result.error) {
   console.error('error: goodcommit binary not found. Reinstall the package.');
   process.exit(1);

@@ -68,13 +68,7 @@ chmod 755 "$INSTALL_DIR/$BIN_NAME"
 
 cat > "$INSTALL_DIR/g" <<'SH'
 #!/bin/sh
-for arg in "$@"; do
-  case "$arg" in
-    --stage-all|--no-stage|--interactive) exec goodcommit "$@" ;;
-  esac
-done
-
-exec goodcommit --no-stage "$@"
+exec goodcommit "$@"
 SH
 
 cat > "$INSTALL_DIR/g." <<'SH'

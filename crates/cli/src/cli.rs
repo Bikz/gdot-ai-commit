@@ -328,7 +328,6 @@ fn stage_mode_for_invocation(invocation: &str) -> Option<StageMode> {
         .unwrap_or(invocation);
     match name {
         "g." => Some(StageMode::All),
-        "g" => Some(StageMode::None),
         _ => None,
     }
 }
@@ -760,16 +759,13 @@ mod tests {
 
     #[test]
     fn stage_mode_for_invocation_matches_aliases() {
-        assert_eq!(stage_mode_for_invocation("g"), Some(StageMode::None));
         assert_eq!(stage_mode_for_invocation("g."), Some(StageMode::All));
-        assert_eq!(
-            stage_mode_for_invocation("/opt/homebrew/bin/g"),
-            Some(StageMode::None)
-        );
         assert_eq!(
             stage_mode_for_invocation("/opt/homebrew/bin/g."),
             Some(StageMode::All)
         );
+        assert_eq!(stage_mode_for_invocation("g"), None);
+        assert_eq!(stage_mode_for_invocation("/opt/homebrew/bin/g"), None);
         assert_eq!(stage_mode_for_invocation("goodcommit"), None);
     }
 }

@@ -1,9 +1,3 @@
 #!/bin/sh
 
-for arg in "$@"; do
-  case "$arg" in
-    --stage-all|--no-stage|--interactive) exec goodcommit "$@" ;;
-  esac
-done
-
-exec goodcommit --no-stage "$@"
+exec goodcommit "$@"
