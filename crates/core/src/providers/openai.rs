@@ -98,21 +98,18 @@ impl OpenAiProvider {
         user_prompt: &str,
         request: ProviderRequest,
     ) -> CoreResult<String> {
-        let base = self.responses_base_payload(system_prompt, user_prompt, request.temperature);
+        let base = self.responses_base_payload(system_prompt, user_prompt, Some(request.temperature));
 
         match self
-            .complete_responses_with_param(&base, "max_output_tokens", request.max_output_tokens)
+            .complete_responses_with_fallbacks(&base, request.max_output_tokens)
             .await
         {
             Ok(message) => Ok(message),
             Err(err) => {
-                if is_unsupported_param(&err, "max_output_tokens") {
+                if is_unsupported_param(&err, "temperature") {
+                    let base = self.responses_base_payload(system_prompt, user_prompt, None);
                     return self
-                        .complete_responses_with_param(
-                            &base,
-                            "max_completion_tokens",
-                            request.max_output_tokens,
-                        )
+                        .complete_responses_with_fallbacks(&base, request.max_output_tokens)
                         .await;
                 }
                 Err(err)
@@ -126,23 +123,41 @@ impl OpenAiProvider {
         user_prompt: &str,
         request: ProviderRequest,
     ) -> CoreResult<String> {
-        let body = serde_json::json!({
-            "model": self.model,
-            "messages": [
-                { "role": "system", "content": system_prompt },
-                { "role": "user", "content": user_prompt }
-            ],
-            "max_tokens": request.max_output_tokens,
-            "temperature": request.temperature
-        });
+        let body = self.chat_payload(
+            system_prompt,
+            user_prompt,
+            request.max_output_tokens,
+            Some(request.temperature),
+        );
 
-        let request = self
+        let http_request = self
             .client
             .post(self.chat_url())
             .bearer_auth(&self.api_key)
             .json(&body);
 
-        let json = self.send_with_retries(request).await?;
+        let json = match self.send_with_retries(http_request).await {
+            Ok(json) => json,
+            Err(err) => {
+                if is_unsupported_param(&err, "temperature") {
+                    let body = self.chat_payload(
+                        system_prompt,
+                        user_prompt,
+                        request.max_output_tokens,
+                        None,
+                    );
+                    let http_request = self
+                        .client
+                        .post(self.chat_url())
+                        .bearer_auth(&self.api_key)
+                        .json(&body);
+                    let json = self.send_with_retries(http_request).await?;
+                    return parse_chat_output(&json);
+                }
+                return Err(err);
+            }
+        };
+
         parse_chat_output(&json)
     }
 
@@ -150,9 +165,9 @@ impl OpenAiProvider {
         &self,
         system_prompt: &str,
         user_prompt: &str,
-        temperature: f32,
+        temperature: Option<f32>,
     ) -> Value {
-        serde_json::json!({
+        let mut payload = serde_json::json!({
             "model": self.model,
             "input": [
                 {
@@ -163,9 +178,62 @@ impl OpenAiProvider {
                     "role": "user",
                     "content": [{ "type": "input_text", "text": user_prompt }]
                 }
+            ]
+        });
+
+        if let Some(obj) = payload.as_object_mut() {
+            if let Some(value) = temperature {
+                obj.insert("temperature".to_string(), serde_json::json!(value));
+            }
+        }
+
+        payload
+    }
+
+    fn chat_payload(
+        &self,
+        system_prompt: &str,
+        user_prompt: &str,
+        max_tokens: u32,
+        temperature: Option<f32>,
+    ) -> Value {
+        let mut payload = serde_json::json!({
+            "model": self.model,
+            "messages": [
+                { "role": "system", "content": system_prompt },
+                { "role": "user", "content": user_prompt }
             ],
-            "temperature": temperature
-        })
+            "max_tokens": max_tokens
+        });
+
+        if let Some(obj) = payload.as_object_mut() {
+            if let Some(value) = temperature {
+                obj.insert("temperature".to_string(), serde_json::json!(value));
+            }
+        }
+
+        payload
+    }
+
+    async fn complete_responses_with_fallbacks(
+        &self,
+        base: &Value,
+        max_tokens: u32,
+    ) -> CoreResult<String> {
+        match self
+            .complete_responses_with_param(base, "max_output_tokens", max_tokens)
+            .await
+        {
+            Ok(message) => Ok(message),
+            Err(err) => {
+                if is_unsupported_param(&err, "max_output_tokens") {
+                    return self
+                        .complete_responses_with_param(base, "max_completion_tokens", max_tokens)
+                        .await;
+                }
+                Err(err)
+            }
+        }
     }
 
     async fn complete_responses_with_param(
@@ -274,7 +342,7 @@ mod tests {
         )
         .expect("provider");
 
-        let payload = provider.responses_base_payload("system", "user", 0.2);
+        let payload = provider.responses_base_payload("system", "user", Some(0.2));
         let input = payload
             .get("input")
             .and_then(|value| value.as_array())
@@ -306,6 +374,46 @@ mod tests {
             Some("user")
         );
     }
+
+    #[test]
+    fn responses_payload_omits_temperature_when_none() {
+        let provider = OpenAiProvider::new(
+            "gpt-5-nano-2025-08-07".to_string(),
+            "https://api.openai.com/v1".to_string(),
+            OpenAiMode::Responses,
+            5,
+            Some("test-key".to_string()),
+        )
+        .expect("provider");
+
+        let payload = provider.responses_base_payload("system", "user", None);
+        assert!(payload.get("temperature").is_none());
+    }
+
+    #[test]
+    fn chat_payload_omits_temperature_when_none() {
+        let provider = OpenAiProvider::new(
+            "gpt-5-nano-2025-08-07".to_string(),
+            "https://api.openai.com/v1".to_string(),
+            OpenAiMode::Chat,
+            5,
+            Some("test-key".to_string()),
+        )
+        .expect("provider");
+
+        let payload = provider.chat_payload("system", "user", 100, None);
+        assert!(payload.get("temperature").is_none());
+    }
+
+    #[test]
+    fn unsupported_param_matches_openai_message() {
+        let err = CoreError::Provider(
+            "openai error 400 Bad Request: {\"error\": {\"message\": \"Unsupported parameter: 'temperature' is not supported with this model.\", \"type\": \"invalid_request_error\", \"param\": \"temperature\", \"code\": null}}"
+                .to_string(),
+        );
+
+        assert!(is_unsupported_param(&err, "temperature"));
+    }
 }
 
 fn should_retry(status: StatusCode) -> bool {
@@ -315,6 +423,8 @@ fn should_retry(status: StatusCode) -> bool {
 }
 
 fn is_unsupported_param(err: &CoreError, param: &str) -> bool {
-    let message = err.to_string();
-    message.contains("unsupported_parameter") && message.contains(param)
+    let message = err.to_string().to_lowercase();
+    let param = param.to_lowercase();
+    (message.contains("unsupported_parameter") || message.contains("unsupported parameter"))
+        && message.contains(&param)
 }
