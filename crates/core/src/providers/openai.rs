@@ -311,20 +311,26 @@ fn parse_responses_output(json: &Value) -> CoreResult<String> {
         }
     }
 
+    tracing::debug!(response = ?json, "openai response missing output text");
     Err(CoreError::Provider(
         "openai response missing output text".to_string(),
     ))
 }
 
 fn parse_chat_output(json: &Value) -> CoreResult<String> {
-    json.get("choices")
+    let content = json.get("choices")
         .and_then(|choices| choices.get(0))
         .and_then(|choice| choice.get("message"))
         .and_then(|message| message.get("content"))
         .and_then(|content| content.as_str())
         .map(|text| text.trim().to_string())
-        .filter(|text| !text.is_empty())
-        .ok_or_else(|| CoreError::Provider("openai response missing content".to_string()))
+        .filter(|text| !text.is_empty());
+
+    if content.is_none() {
+        tracing::debug!(response = ?json, "openai response missing content");
+    }
+
+    content.ok_or_else(|| CoreError::Provider("openai response missing content".to_string()))
 }
 
 #[cfg(test)]
