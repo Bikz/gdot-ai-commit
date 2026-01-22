@@ -16,7 +16,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Resolve release tag
         id: release
@@ -118,7 +118,7 @@ jobs:
           PY
 
       - name: Checkout tap repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: Bikz/homebrew-tap
           token: ${{ secrets.BREW_TAP_TOKEN }}
