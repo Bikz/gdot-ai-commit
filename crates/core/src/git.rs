@@ -18,6 +18,7 @@ pub struct GitDiff {
     pub truncated: bool,
 }
 
+#[allow(clippy::missing_errors_doc)]
 pub trait GitBackend {
     fn ensure_git_repo(&self) -> CoreResult<()>;
     fn repo_root(&self) -> CoreResult<PathBuf>;
@@ -40,6 +41,7 @@ pub trait GitBackend {
 pub struct SystemGit;
 
 impl SystemGit {
+    #[must_use]
     pub fn new() -> Self {
         Self
     }
@@ -278,7 +280,7 @@ fn run_git_output(args: &[&str]) -> CoreResult<String> {
     let output = run_git(args)?;
     let stdout = String::from_utf8(output.stdout)?;
     let stderr = String::from_utf8(output.stderr)?;
-    let combined = format!("{}{}", stdout, stderr);
+    let combined = format!("{stdout}{stderr}");
     Ok(combined.trim().to_string())
 }
 
@@ -355,7 +357,7 @@ fn run_git_capture_limit(args: &[&str], max_bytes: u64) -> CoreResult<(String, b
             break;
         }
 
-        let remaining = max_bytes.saturating_sub(total) as usize;
+        let remaining = usize::try_from(max_bytes.saturating_sub(total)).unwrap_or(usize::MAX);
         if remaining == 0 {
             truncated = true;
             break;

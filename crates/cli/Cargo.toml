@@ -1,6 +1,6 @@
 [package]
 name = "goodcommit"
-version = "0.3.2"
+version = "0.3.3"
 edition = "2021"
 license = "MIT"
 description = "Good Commit: fast, reliable AI commit messages"
@@ -15,7 +15,7 @@ is-terminal = "0.4"
 tokio = { version = "1.39", features = ["rt-multi-thread", "macros", "time", "signal"] }
 toml = "0.8"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter", "json"] }
 
 [dev-dependencies]
 assert_cmd = "2.0"

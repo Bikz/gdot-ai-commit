@@ -1,0 +1,8 @@
+repos:
+  - repo: local
+    hooks:
+      - id: lint
+        name: cargo fmt + clippy
+        entry: scripts/lint.sh
+        language: system
+        pass_filenames: false

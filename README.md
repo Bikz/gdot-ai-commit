@@ -113,6 +113,16 @@ goodcommit hook install
 goodcommit hook uninstall
 ```
 
+## Development
+
+```bash
+scripts/bootstrap.sh
+scripts/lint.sh
+scripts/test.sh
+scripts/audit.sh
+scripts/verify-npm.sh
+```
+
 ## Contributing
 
 Issues and PRs are welcome. Please open an issue for bugs or feature requests, and open a PR for fixes or docs. For larger changes, start with an issue so we can align.

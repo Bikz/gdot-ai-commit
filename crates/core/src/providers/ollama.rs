@@ -13,6 +13,10 @@ pub struct OllamaProvider {
 }
 
 impl OllamaProvider {
+    /// Create a new Ollama provider client.
+    ///
+    /// # Errors
+    /// Returns an error if the HTTP client fails to build.
     pub fn new(model: String, endpoint: String, timeout_secs: u64) -> CoreResult<Self> {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(timeout_secs))

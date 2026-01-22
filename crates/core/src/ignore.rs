@@ -11,11 +11,16 @@ pub struct IgnoreMatcher {
 }
 
 impl IgnoreMatcher {
+    #[must_use]
     pub fn is_ignored(&self, path: &str) -> bool {
         self.globset.is_match(path)
     }
 }
 
+/// Build an ignore matcher from defaults, ignore files, and config patterns.
+///
+/// # Errors
+/// Returns an error when the ignore patterns are invalid.
 pub fn build_ignore_matcher(
     config_patterns: &[String],
     paths: &ConfigPaths,
@@ -55,13 +60,14 @@ pub fn read_ignore_file(path: &Path) -> Vec<String> {
             .map(str::trim)
             .filter(|line| !line.is_empty())
             .filter(|line| !line.starts_with('#'))
-            .map(|line| line.to_string())
+            .map(str::to_string)
             .collect()
     } else {
         Vec::new()
     }
 }
 
+#[must_use]
 pub fn default_patterns() -> Vec<String> {
     vec![
         "node_modules".to_string(),

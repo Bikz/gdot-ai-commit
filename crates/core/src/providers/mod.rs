@@ -25,6 +25,10 @@ pub trait Provider: Send + Sync {
     ) -> CoreResult<String>;
 }
 
+/// Build the configured AI provider.
+///
+/// # Errors
+/// Returns an error if required provider configuration is missing.
 pub fn build_provider(config: &EffectiveConfig) -> CoreResult<Box<dyn Provider>> {
     match config.provider {
         ProviderKind::OpenAi => Ok(Box::new(OpenAiProvider::new(
@@ -42,6 +46,7 @@ pub fn build_provider(config: &EffectiveConfig) -> CoreResult<Box<dyn Provider>>
     }
 }
 
+#[must_use]
 pub fn openai_mode_for(model: &str, mode: OpenAiMode) -> OpenAiMode {
     let model = model.trim().to_lowercase();
     if model.starts_with("gpt-5") {

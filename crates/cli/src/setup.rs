@@ -101,18 +101,20 @@ pub fn run_setup() -> Result<()> {
         .default(true)
         .interact()?;
 
-    let mut config = Config::default();
-    config.provider = Some(provider_kind);
-    config.model = Some(model);
-    config.openai_mode = openai_mode;
-    config.openai_api_key = openai_key;
-    config.push = Some(push);
-    config.conventional = Some(true);
-    config.one_line = Some(true);
-    config.timeout_secs = Some(20);
-    config.max_input_tokens = Some(6000);
-    config.max_output_tokens = Some(2048);
-    config.stage_mode = Some(StageMode::Auto);
+    let config = Config {
+        provider: Some(provider_kind),
+        model: Some(model),
+        openai_mode,
+        openai_api_key: openai_key,
+        push: Some(push),
+        conventional: Some(true),
+        one_line: Some(true),
+        timeout_secs: Some(20),
+        max_input_tokens: Some(6000),
+        max_output_tokens: Some(2048),
+        stage_mode: Some(StageMode::Auto),
+        ..Config::default()
+    };
 
     let toml = toml::to_string_pretty(&config).context("failed to serialize config")?;
     fs::write(&config_path, toml).context("failed to write config")?;

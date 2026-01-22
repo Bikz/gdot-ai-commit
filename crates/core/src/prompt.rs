@@ -1,5 +1,6 @@
 use crate::config::EffectiveConfig;
 
+#[must_use]
 pub fn commit_system_prompt(config: &EffectiveConfig) -> String {
     let mut prompt = String::from(
         "You are a Git commit message generator that follows the Conventional Commits specification.\n\n",
@@ -35,6 +36,7 @@ pub fn commit_system_prompt(config: &EffectiveConfig) -> String {
     prompt
 }
 
+#[must_use]
 pub fn commit_user_prompt(diff: &str, config: &EffectiveConfig) -> String {
     if let Some(lang) = &config.lang {
         format!("Generate the commit message in {lang}.\n\nDiff:\n{diff}")
@@ -43,11 +45,13 @@ pub fn commit_user_prompt(diff: &str, config: &EffectiveConfig) -> String {
     }
 }
 
+#[must_use]
 pub fn summary_system_prompt() -> String {
     "You are a code reviewer summarizing diffs. Summarize the changes briefly and factually.\nRULES:\n- Use short bullet points.\n- Mention files and key changes.\n- No markdown code blocks.\n"
         .to_string()
 }
 
+#[must_use]
 pub fn summary_user_prompt(path: &str, diff: &str) -> String {
     format!("Summarize changes for {path}:\n\n{diff}")
 }

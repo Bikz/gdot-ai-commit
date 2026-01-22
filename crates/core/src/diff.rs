@@ -9,6 +9,7 @@ pub struct DiffFile {
     pub token_estimate: usize,
 }
 
+#[must_use]
 pub fn diff_files_to_string(files: &[DiffFile]) -> String {
     files
         .iter()
@@ -17,31 +18,33 @@ pub fn diff_files_to_string(files: &[DiffFile]) -> String {
         .join("\n")
 }
 
+#[must_use]
 pub fn estimate_tokens(text: &str) -> usize {
     let chars = text.chars().count();
-    ((chars as f32) / 4.0).ceil() as usize
+    chars.saturating_add(3) / 4
 }
 
+#[must_use]
 pub fn truncate_lines(text: &str, max_lines: u32) -> (String, bool) {
     if max_lines == 0 {
         return (String::new(), !text.trim().is_empty());
     }
 
     let mut buffer = String::new();
-    let mut count = 0u32;
+    let max_lines = max_lines as usize;
 
-    for line in text.lines() {
+    for (count, line) in text.lines().enumerate() {
         if count >= max_lines {
             return (buffer.trim_end().to_string(), true);
         }
         buffer.push_str(line);
         buffer.push('\n');
-        count += 1;
     }
 
     (buffer.trim_end().to_string(), false)
 }
 
+#[must_use]
 pub fn truncate_to_tokens(text: &str, max_tokens: usize) -> String {
     let mut buffer = String::new();
     let mut count = 0usize;
