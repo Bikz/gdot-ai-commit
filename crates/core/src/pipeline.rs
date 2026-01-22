@@ -217,7 +217,7 @@ async fn summarize_then_commit(
     deadline: Instant,
 ) -> CoreResult<String> {
     let max_file_tokens = std::cmp::min(config.max_input_tokens as usize, 2000);
-    let summary_tokens = std::cmp::min(config.max_output_tokens, 120);
+    let summary_tokens = config.max_output_tokens;
     let concurrency = std::cmp::max(config.summary_concurrency, 1);
 
     let summary_results = stream::iter(diff_files.iter())

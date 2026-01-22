@@ -98,7 +98,12 @@ impl OpenAiProvider {
         user_prompt: &str,
         request: ProviderRequest,
     ) -> CoreResult<String> {
-        let base = self.responses_base_payload(system_prompt, user_prompt, Some(request.temperature));
+        let temperature = if self.is_gpt5() {
+            None
+        } else {
+            Some(request.temperature)
+        };
+        let base = self.responses_base_payload(system_prompt, user_prompt, temperature);
 
         match self
             .complete_responses_with_fallbacks(&base, request.max_output_tokens)
@@ -123,11 +128,16 @@ impl OpenAiProvider {
         user_prompt: &str,
         request: ProviderRequest,
     ) -> CoreResult<String> {
+        let temperature = if self.is_gpt5() {
+            None
+        } else {
+            Some(request.temperature)
+        };
         let body = self.chat_payload(
             system_prompt,
             user_prompt,
             request.max_output_tokens,
-            Some(request.temperature),
+            temperature,
         );
 
         let http_request = self
@@ -182,6 +192,16 @@ impl OpenAiProvider {
         });
 
         if let Some(obj) = payload.as_object_mut() {
+            if self.is_gpt5() {
+                obj.insert(
+                    "reasoning".to_string(),
+                    serde_json::json!({ "effort": "none" }),
+                );
+                obj.insert(
+                    "text".to_string(),
+                    serde_json::json!({ "format": { "type": "text" } }),
+                );
+            }
             if let Some(value) = temperature {
                 obj.insert("temperature".to_string(), serde_json::json!(value));
             }
@@ -234,6 +254,10 @@ impl OpenAiProvider {
                 Err(err)
             }
         }
+    }
+
+    fn is_gpt5(&self) -> bool {
+        self.model.trim().to_lowercase().starts_with("gpt-5")
     }
 
     async fn complete_responses_with_param(
@@ -394,6 +418,41 @@ mod tests {
 
         let payload = provider.responses_base_payload("system", "user", None);
         assert!(payload.get("temperature").is_none());
+    }
+
+    #[test]
+    fn responses_payload_sets_reasoning_none_for_gpt5() {
+        let provider = OpenAiProvider::new(
+            "gpt-5-nano-2025-08-07".to_string(),
+            "https://api.openai.com/v1".to_string(),
+            OpenAiMode::Responses,
+            5,
+            Some("test-key".to_string()),
+        )
+        .expect("provider");
+
+        let payload = provider.responses_base_payload("system", "user", None);
+        let effort = payload
+            .get("reasoning")
+            .and_then(|value| value.get("effort"))
+            .and_then(|value| value.as_str());
+        assert_eq!(effort, Some("none"));
+        assert!(payload.get("text").is_some());
+    }
+
+    #[test]
+    fn responses_payload_skips_reasoning_for_non_gpt5() {
+        let provider = OpenAiProvider::new(
+            "gpt-4o-mini".to_string(),
+            "https://api.openai.com/v1".to_string(),
+            OpenAiMode::Responses,
+            5,
+            Some("test-key".to_string()),
+        )
+        .expect("provider");
+
+        let payload = provider.responses_base_payload("system", "user", None);
+        assert!(payload.get("reasoning").is_none());
     }
 
     #[test]

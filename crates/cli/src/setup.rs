@@ -111,7 +111,7 @@ pub fn run_setup() -> Result<()> {
     config.one_line = Some(true);
     config.timeout_secs = Some(20);
     config.max_input_tokens = Some(6000);
-    config.max_output_tokens = Some(200);
+    config.max_output_tokens = Some(2048);
     config.stage_mode = Some(StageMode::Auto);
 
     let toml = toml::to_string_pretty(&config).context("failed to serialize config")?;
